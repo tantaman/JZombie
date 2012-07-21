@@ -35,7 +35,7 @@ public class ItemView extends JPanel {
 		name = new JLabel();
 		completed = new JCheckBox();
 		
-		fontAttrs = new Font("Serif", Font.PLAIN, 12).getAttributes();
+		fontAttrs = new Font("Arial", Font.BOLD, 12).getAttributes();
 		
 		add(completed);
 		add(name);
@@ -53,6 +53,7 @@ public class ItemView extends JPanel {
 				} else {
 					model.completed(false);
 				}
+				model.save();
 			}
 		});
 	}

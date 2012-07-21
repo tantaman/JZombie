@@ -1,6 +1,6 @@
 module.exports = {
 	ItemList: {
-		items: [
+		models: [
 			{
 				id: 0,
 				name: "Clean Kitchen",

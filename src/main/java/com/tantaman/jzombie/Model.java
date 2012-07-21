@@ -69,7 +69,8 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 	protected void idChanged() {
 		// TODO: when this happens
 		// we need to update the collection we are in, if any.
-		super.idChanged();
+		// We need to update subscriptions if the id ever changes.
+		System.out.println("MY ID CHANGED! WERD!");
 	}
 	
 	public void setId(long id) {

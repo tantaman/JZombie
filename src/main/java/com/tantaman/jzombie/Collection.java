@@ -10,11 +10,11 @@ import java.util.concurrent.ExecutorService;
 import com.google.gson.annotations.Expose;
 import com.tantaman.jzombie.serializers.ISerializer;
 
-public class Collection<T, ItemType extends Model> extends ModelCollectionCommon<T> implements Iterable<ItemType> {
+public class Collection<T, ModelType extends Model> extends ModelCollectionCommon<T> implements Iterable<ModelType> {
 	// TODO: will this get serialized correctly?  Doubtful... so how do we do it?
 	// I don't think a type adapter will do it for us...
 	@Expose
-	private final List<ItemType> items;
+	private final List<ModelType> models;
 	private final Set<Long> addedIds;
 	private final Set<Long> addedCids;
 	
@@ -26,7 +26,7 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 	
 	public Collection(ExecutorService safeThreads, ISerializer<String, T> s, Class<?> ... listenerClasses) {
 		super(safeThreads, s, addListenerInterface(listenerClasses, Listener.class));
-		items = new ArrayList<ItemType>();
+		models = new ArrayList<ModelType>();
 		
 		addedIds = new HashSet<Long>();
 		addedCids = new HashSet<Long>();
@@ -41,21 +41,21 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 	}
 	
 	@Override
-	public Iterator<ItemType> iterator() {
-		return items.iterator();
+	public Iterator<ModelType> iterator() {
+		return models.iterator();
 	}
 	
-	public ItemType at(long id) {
+	public ModelType at(long id) {
 		FakeModel m = new FakeModel(id, -1);
-		int idx = items.indexOf(m);
-		return items.get(idx);
+		int idx = models.indexOf(m);
+		return models.get(idx);
 	}
 	
-	public ItemType get(int idx) {
-		return items.get(idx);
+	public ModelType get(int idx) {
+		return models.get(idx);
 	}
 	
-	public void add(ItemType item) {
+	public void add(ModelType item) {
 		if (item.id() > 0) {
 			if (addedIds.contains(item.id()))
 				return;
@@ -63,7 +63,9 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 			return;
 		}
 		
-		items.add(item);
+		item.setCollection(this);
+		
+		models.add(item);
 		if (item.id() > 0)
 			addedIds.add(item.id());
 		else
@@ -72,7 +74,7 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 		((Listener)emitter.emit).add(item, this);
 	}
 	
-	public boolean remove(ItemType item) {
+	public boolean remove(ModelType item) {
 		return doRemove(item);
 	}
 	
@@ -90,10 +92,10 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 	private boolean doRemove(IModelComaprable item) {
 		// TODO: don't use index of, instead use our own method with our own comparator
 		// so people can freely override hashCode and equals of their models.
-		int idx = items.indexOf(item);
+		int idx = models.indexOf(item);
 		
 		if (idx >= 0) {
-			ItemType removed = items.remove(idx);
+			ModelType removed = models.remove(idx);
 			addedIds.remove(removed.id());
 			addedCids.remove(removed.cid());
 			((Listener)emitter.emit).remove(removed, this);
@@ -105,7 +107,9 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 	
 	@Override
 	protected void resetFromServer() {
-		System.out.println("Reset from serv");
+		for (ModelType model : models) {
+			model.setCollection(this);
+		}
 		((Listener)emitter.emit).reset(this);
 	}
 	

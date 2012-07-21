@@ -49,10 +49,10 @@ public class ModelTest {
 			return itemOne + itemTwo + tc;
 		}
 		
-		@Override
-		protected void changed() {
-			System.out.println("Model changed");
-		}
+//		@Override
+//		protected void changed() {
+//			System.out.println("Model changed");
+//		}
 	}
 	
 	public static class TestClassTwo extends Model<TestClass> {

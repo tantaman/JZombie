@@ -2,6 +2,7 @@ package com.tantaman.jzombie;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -15,6 +16,8 @@ import org.cometd.client.transport.ClientTransport;
 import org.cometd.websocket.client.WebSocketTransport;
 import org.eclipse.jetty.websocket.WebSocketClientFactory;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.InstanceCreator;
 import com.google.gson.annotations.Expose;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
@@ -63,7 +66,17 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	}
 	
 	protected ISerializer<String, T> createDefaultSerializer() {
-		return new GSonSerializer();
+		GsonBuilder builder = new GsonBuilder();
+		final T self = (T)this;
+		
+		builder.registerTypeAdapter(this.getClass(), new InstanceCreator<T>() {
+			@Override
+			public T createInstance(Type arg0) {
+				return self;
+			}
+		}).excludeFieldsWithoutExposeAnnotation();
+		
+		return new GSonSerializer(builder.create());
 	}
 	
 	protected abstract long id();
@@ -105,6 +118,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	}
 	
 	public void save() {
+		System.out.println("Saving...");
 		save(null, null);
 	}
 	
@@ -113,11 +127,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	}
 	
 	public void save(String data, final Fn<Void, T> success, final Fn<Void, Throwable> err) {
-		String rootUrl = rootUrl();
-		
-		if (rootUrl == "")
-			return;
-		
 		AsyncCompletionHandler<Response> handler = new AsyncCompletionHandler<Response>(){
 	        @Override
 	        public Response onCompleted(Response response) throws Exception {
@@ -136,9 +145,17 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		
 	    try {
 			if (this.id() < 0) {
-				asyncHttpClient.preparePost(url()).execute(handler);
+				System.out.println("Posting to url: " + url());
+				asyncHttpClient.preparePost(url())
+					.addHeader("Content-Type", "application/json")
+					.setBody(serialize())
+					.execute(handler);
 			} else {
-				asyncHttpClient.preparePut(url()).execute(handler);
+				System.out.println("Putting to url: " + url());
+				asyncHttpClient.preparePut(url())
+					.addHeader("Content-Type", "application/json")
+					.setBody(serialize())
+					.execute(handler);
 			}
 	    } catch (IOException e) {
 	    	if (err != null)
@@ -222,6 +239,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			int statusCode = response.getStatusCode();
 			switch (statusCode) {
 			case 200:
+				// server should only return an id . . . ?
 				handleServerDataReturn(response, success);
 				break;
 			case 204:
@@ -229,7 +247,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 					success.fn(null);
 				break;
 			default:
-				throw new IllegalArgumentException("Unexpected return code");
+				throw new IllegalArgumentException("Unexpected return code: " + statusCode + " url: " + url());
 			}
 		} catch (Exception e) {
 			if (err != null)
@@ -239,8 +257,11 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		}
 	}
 	
+	// TODO: we could be a lot smarter and isntead of actually de-serializing and then re-filling our object
+	// just re-fill our object.
 	private void handleServerDataReturn(Response response, final Fn<Void, T> success) throws IOException {
-		final T result;
+		//final T result;
+		final String body;
 		synchronized (receiveLock) {
 			String strEtag = response.getHeader("ETag");
 			if (strEtag != null) {
@@ -252,43 +273,55 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 				System.out.println("No etag");
 			}
 			
-			String body = response.getResponseBody();
-			result = deserialize(body);
+			body = response.getResponseBody();
 		}
 		
 		safeThreads.execute(new Runnable() {
 			@Override
 			public void run() {
-				setUpdatedData(result);
+				//setUpdatedData(result);
+				T result = setUpdatedData(body);
 				if (success != null)
 					success.fn(result);
 			}
 		});
 	}
 	
-	protected void setUpdatedData(T data) {
-		boolean idChanged = false;
-		if (((ModelCollectionCommon)data).id() != id()) {
-			idChanged = true;
-		}
+	protected T setUpdatedData(String json) {
+		long prevId = id();
+		T result = deserialize(json);
 		
-		Field [] fields = ObjectUtils.setFields(this, data, new Fn<Boolean, Field>() {
-			@Override
-			public Boolean fn(Field param) {
-				return param.getAnnotation(Expose.class) != null;
-			}
-		}, ModelCollectionCommon.class);
-		
-		if (idChanged) {
+		if (prevId != id()) {
 			idChanged();
 		}
 		
 		resetFromServer();
-		changed();
+		
+		return result;
 	}
 	
+//	protected void setUpdatedData(T data) {
+//		boolean idChanged = false;
+//		if (((ModelCollectionCommon)data).id() != id()) {
+//			idChanged = true;
+//		}
+//		
+//		Field [] fields = ObjectUtils.setFields(this, data, new Fn<Boolean, Field>() {
+//			@Override
+//			public Boolean fn(Field param) {
+//				return param.getAnnotation(Expose.class) != null;
+//			}
+//		}, ModelCollectionCommon.class);
+//		
+//		if (idChanged) {
+//			idChanged();
+//		}
+//		
+//		resetFromServer();
+//		changed();
+//	}
+	
 	protected void fieldSet(Field f) {}
-	protected void changed() {}
 	protected void resetFromServer() {}
 	protected void idChanged() {}
 	

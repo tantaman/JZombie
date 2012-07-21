@@ -5,6 +5,11 @@ import com.google.gson.GsonBuilder;
 
 public class GSonSerializer<T> implements ISerializer<String, T> {
 	private final Gson builder;
+	
+	public GSonSerializer(Gson gson) {
+		builder = gson;
+	}
+	
 	public GSonSerializer() {
 		builder = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
 	}
