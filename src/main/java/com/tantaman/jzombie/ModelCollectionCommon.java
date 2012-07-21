@@ -30,10 +30,10 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	private static final ScheduledExecutorService bayeuxService = Executors.newScheduledThreadPool(4, new NamedThreadFactory("JZombie-Client-BayeuxService"));
 	private static final WebSocketClientFactory webSocketClientFactory = new WebSocketClientFactory();
 	
-	private final ISerializer<String, T> serializer;
+	protected final ISerializer<String, T> serializer;
 	
-	// TODO: eventaully we should generalize to not be HTTP only
-	// could take an IClient
+	// TODO: eventaully we should generalize to not be HTTP only.
+	// Could take an IClient.
 	private final AsyncHttpClient asyncHttpClient;
 	private final ExecutorService safeThreads;
 	
@@ -58,9 +58,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	protected abstract long id();
 		
-	protected String rootUrl() {
-		return "";
-	}
+	protected abstract String rootUrl();
 	
 	protected String url() {
 		return host() + rootUrl() + "/" + getIdString();
@@ -149,9 +147,11 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	    asyncHttpClient.prepareGet(url()).execute(handler);
 	}
 	
-	public void subscribe() {
-		//ClientTransport transport = 
-		//ClientSes
+	public synchronized void subscribe() {
+		if (bayeuxClient != null) {
+			throw new IllegalStateException("Already subscribed.");
+		}
+		
 		ClientTransport transport = WebSocketTransport.create(null, webSocketClientFactory, bayeuxService);
         bayeuxClient = new BayeuxClient(bayeuxMountPoint(), transport);
         bayeuxClient.handshake();
@@ -210,7 +210,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	private void handleServerDataReturn(Response response, final Fn<Void, T> success) throws IOException {
 		String body = response.getResponseBody();
-		final T result = serializer.deserialize(body, (Class<T>)this.getClass());
+		final T result = deserialize(body);
 		
 		safeThreads.execute(new Runnable() {
 			@Override
@@ -222,7 +222,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		});
 	}
 	
-	protected void setUpdatedData(Object data) {
+	protected void setUpdatedData(T data) {
 		boolean idChanged = false;
 		if (((ModelCollectionCommon)data).id() != id()) {
 			idChanged = true;

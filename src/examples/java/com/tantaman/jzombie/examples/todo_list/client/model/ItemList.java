@@ -1,4 +1,4 @@
-package com.tantaman.jzombie.examples.todo_list.model;
+package com.tantaman.jzombie.examples.todo_list.client.model;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,11 +15,6 @@ public class ItemList extends Model<ItemList> {
 		super(SwingEDTAsExecutor.instance, Listener.class);
 		
 		items = new ArrayList<Item>();
-	}
-	
-	@Override
-	protected String rootUrl() {
-		return "/todo";
 	}
 	
 	public List<Item> getItems() {

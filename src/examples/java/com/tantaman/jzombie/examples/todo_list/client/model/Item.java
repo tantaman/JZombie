@@ -1,4 +1,4 @@
-package com.tantaman.jzombie.examples.todo_list.model;
+package com.tantaman.jzombie.examples.todo_list.client.model;
 
 import com.google.gson.annotations.Expose;
 import com.tantaman.commons.concurrent.executors.SwingEDTAsExecutor;
@@ -8,20 +8,20 @@ public class Item extends Model<Item> {
 	@Expose
 	private boolean completed;
 	@Expose
-	private String task;
+	private String name;
 	
-	public Item(boolean completed, String task) {
+	public Item(boolean completed, String name) {
 		super(SwingEDTAsExecutor.instance);
 		
 		this.completed = completed;
-		this.task = task;
+		this.name = name;
 	}
 	
 	public boolean isCompleted() {
 		return completed;
 	}
 	
-	public String getTask() {
-		return task;
+	public String getName() {
+		return name;
 	}
 }

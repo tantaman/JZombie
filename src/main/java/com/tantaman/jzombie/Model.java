@@ -1,12 +1,9 @@
 package com.tantaman.jzombie;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.gson.annotations.Expose;
-import com.tantaman.commons.concurrent.NamedThreadFactory;
 import com.tantaman.jzombie.serializers.ISerializer;
 
 /*
@@ -19,14 +16,16 @@ import com.tantaman.jzombie.serializers.ISerializer;
  * 
  * The main point to know is: Actions in a thread prior to the submission of a Runnable to an Executor happen-before its execution begins. Similarly for Callables submitted to an ExecutorService.
  */
-public class Model<T extends Model<T>> extends ModelCollectionCommon<T> {	
+public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implements IModelComaprable {	
 	@Expose
 	protected volatile long id = -1;
 	protected volatile long cid = -1;
 	
 	protected static AtomicLong nextCid = new AtomicLong(-1);
+	private volatile Collection<?, T> collection;
 	
 	// TODO: on a post we can expect to get an id back...  how should we handle that?
+	// TODO: we need to know if we are in a collection!!!
 	/**
 	 * @param safeThreads Thread(s) to use when modifying model data after it has been returned by the server and deserialized.
 	 */
@@ -45,21 +44,46 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> {
 		cid = nextCid.incrementAndGet();
 	}
 	
-	public void subscribe() {
-		// Subscribes to cometd / bayeux at url url()
+	@Override
+	protected void sync() {
+		if (this.id == -1) {
+			this.cid = nextCid.incrementAndGet();
+		}
+	}
+	
+	protected void setCollection(Collection<?, T> collection) {
+		this.collection = collection;
+	}
+	
+	// TODO: get out url based on our collection url!
+	@Override
+	protected String rootUrl() {
+		if (this.collection != null) {
+			return this.collection.rootUrl();
+		} else {
+			return "";
+		}
+	}
+	
+	@Override
+	protected void idChanged() {
+		// TODO: when this happens
+		// we need to update the collection we are in, if any.
+		super.idChanged();
 	}
 	
 	public void setId(long id) {
 		this.id = id;
-	}
-	
-	public static interface Listener {
-		public void change();
+		idChanged();
 	}
 
 	@Override
-	protected long id() {
+	public long id() {
 		return id;
+	}
+	
+	public long cid() {
+		return cid;
 	}
 	
 	// TODO: should probably make a model wrapper that implements hash code and equals in this
@@ -77,14 +101,18 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> {
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof Model) {
+		if (obj instanceof IModelComaprable) {
 			if (id < 0) {
-				return ((Model)obj).cid == cid;
+				return ((IModelComaprable)obj).cid() == cid;
 			} else {
-				return ((Model)obj).id == id;
+				return ((IModelComaprable)obj).id() == id;
 			}
 		} else {
 			return false;
 		}
+	}
+	
+	public static interface Listener {
+		public void change();
 	}
 }
