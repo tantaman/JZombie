@@ -26,6 +26,10 @@ import com.tantaman.commons.listeners.AbstractMultiEventSource;
 import com.tantaman.jzombie.serializers.GSonSerializer;
 import com.tantaman.jzombie.serializers.ISerializer;
 
+// TODO: need to sync publishes with fetches!!!
+// I assume we can't do publishes on the same socket as fetches or can we???
+// Other: the server can fill in a seq number for us and we can discard anything less than the latest seq we have received
+// We could use the ETag field of the HTTP response headers!!
 public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource {
 	private static final ScheduledExecutorService bayeuxService = Executors.newScheduledThreadPool(4, new NamedThreadFactory("JZombie-Client-BayeuxService"));
 	private static final WebSocketClientFactory webSocketClientFactory = new WebSocketClientFactory();
