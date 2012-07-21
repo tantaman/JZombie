@@ -1,9 +1,7 @@
 package com.tantaman.jzombie;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 import com.google.gson.annotations.Expose;
@@ -13,10 +11,7 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 	// TODO: will this get serialized correctly?  Doubtful... so how do we do it?
 	// I don't think a type adapter will do it for us...
 	@Expose
-	private final List<ItemType> items;
-	
-	private final Map<Long, ItemType> itemsById;
-	private final Map<Long, ItemType> itemsByCid;
+	private final Set<ItemType> items;
 	
 	public Collection(ExecutorService safeThreads) {
 		this(safeThreads, null, null);
@@ -26,8 +21,7 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 	
 	public Collection(ExecutorService safeThreads, ISerializer<String, T> s, Class<?> ... listenerClasses) {
 		super(safeThreads, s, addListenerInterface(listenerClasses, Listener.class));
-		items = new ArrayList<ItemType>();
-		itemsById = new ConcurrentHashMap<Long, ItemType>();
+		items = new HashSet<ItemType>();
 	}
 	
 	public void add(ItemType item) {
@@ -41,8 +35,12 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 		}
 	}
 	
-	public void remove(long id) {
+	public void removeById(long id) {
 		// find by id. . . 
+	}
+	
+	public void removeByCid(long id) {
+		
 	}
 
 	public void subscribe() {

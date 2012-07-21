@@ -4,24 +4,40 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
+import org.cometd.bayeux.Message;
+import org.cometd.bayeux.client.ClientSession;
+import org.cometd.bayeux.client.ClientSessionChannel;
+import org.cometd.client.BayeuxClient;
+import org.cometd.client.transport.ClientTransport;
+import org.cometd.websocket.client.WebSocketTransport;
+import org.eclipse.jetty.websocket.WebSocketClientFactory;
 
 import com.google.gson.annotations.Expose;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import com.tantaman.commons.Fn;
+import com.tantaman.commons.concurrent.NamedThreadFactory;
 import com.tantaman.commons.lang.ObjectUtils;
 import com.tantaman.commons.listeners.AbstractMultiEventSource;
 import com.tantaman.jzombie.serializers.GSonSerializer;
 import com.tantaman.jzombie.serializers.ISerializer;
 
 public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource {
+	private static final ScheduledExecutorService bayeuxService = Executors.newScheduledThreadPool(4, new NamedThreadFactory("JZombie-Client-BayeuxService"));
+	private static final WebSocketClientFactory webSocketClientFactory = new WebSocketClientFactory();
+	
 	private final ISerializer<String, T> serializer;
 	
 	// TODO: eventaully we should generalize to not be HTTP only
 	// could take an IClient
 	private final AsyncHttpClient asyncHttpClient;
 	private final ExecutorService safeThreads;
+	
+	private volatile ClientSession bayeuxClient;
 	
 	public ModelCollectionCommon(ExecutorService safeThreads, ISerializer<String, T> s, Class[] listenerClasses) {
 		super(true, listenerClasses);
@@ -48,6 +64,14 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	protected String url() {
 		return host() + rootUrl() + "/" + getIdString();
+	}
+	
+	protected String channel() {
+		return rootUrl() + "/" + getIdString();
+	}
+	
+	protected String bayeuxMountPoint() {
+		return host() + "/bayeux";
 	}
 	
 	protected String host() {
@@ -125,7 +149,18 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	    asyncHttpClient.prepareGet(url()).execute(handler);
 	}
 	
-	public abstract void subscribe();
+	public void subscribe() {
+		//ClientTransport transport = 
+		//ClientSes
+		ClientTransport transport = WebSocketTransport.create(null, webSocketClientFactory, bayeuxService);
+        bayeuxClient = new BayeuxClient(bayeuxMountPoint(), transport);
+        bayeuxClient.handshake();
+        
+        // Can I start subscribing or does handshake need to actually complete first?
+        // TODO: we need to clean up the Bayeux client correctly when the model is no longer used.
+        ClientSessionChannel channel = bayeuxClient.getChannel(channel());
+        channel.subscribe(new BayeuxMessageListener());
+	}
 	
 	private void fetchCompleted(Response response, Fn<Void, T> success, Fn<Void, Throwable> err) {
 		try {
@@ -188,6 +223,11 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	}
 	
 	protected void setUpdatedData(Object data) {
+		boolean idChanged = false;
+		if (((ModelCollectionCommon)data).id() != id()) {
+			idChanged = true;
+		}
+		
 		Field [] fields = ObjectUtils.setFields(this, data, new Fn<Boolean, Field>() {
 			@Override
 			public Boolean fn(Field param) {
@@ -195,13 +235,18 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			}
 		}, ModelCollectionCommon.class);
 		
-		dataSetFromServer();
+		if (idChanged) {
+			idChanged();
+		}
+		
+		sync();
 		changed();
 	}
 	
 	protected void fieldSet(Field f) {}
 	protected void changed() {}
-	protected void dataSetFromServer() {}
+	protected void sync() {}
+	protected void idChanged() {}
 	
 	public String serialize() {
 		return serializer.serialize((T) this);
@@ -209,5 +254,12 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	public T deserialize(String data) {
 		return serializer.deserialize(data, (Class<T>)this.getClass());
+	}
+	
+	private class BayeuxMessageListener implements ClientSessionChannel.MessageListener {
+		@Override
+		public void onMessage(ClientSessionChannel channel, Message message) {
+			System.out.println("GOT A MESSAGE! WOO!!");
+		}
 	}
 }
