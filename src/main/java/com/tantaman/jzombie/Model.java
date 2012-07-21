@@ -45,7 +45,7 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 	}
 	
 	@Override
-	protected void sync() {
+	protected void resetFromServer() {
 		if (this.id == -1) {
 			this.cid = nextCid.incrementAndGet();
 		}
@@ -112,7 +112,7 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 		}
 	}
 	
-	public static interface Listener {
-		public void change();
+	public static interface Listener<T> {
+		public void sync(T model);
 	}
 }

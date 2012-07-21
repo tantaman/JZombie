@@ -40,8 +40,14 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	// Could take an IClient.
 	private final AsyncHttpClient asyncHttpClient;
 	private final ExecutorService safeThreads;
+	private final Object receiveLock = new Object();
 	
 	private volatile ClientSession bayeuxClient;
+	/** non volatile since access to etag is controlled by receiveLock **/
+	private long etag;
+	
+	// TODO: fetch returns need to be synchronized?
+	// Synch them with publish receptions at least so synch em anyhow...
 	
 	public ModelCollectionCommon(ExecutorService safeThreads, ISerializer<String, T> s, Class[] listenerClasses) {
 		super(true, listenerClasses);
@@ -98,11 +104,15 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		return listenerInterfaces;
 	}
 	
-	public void save(Fn<Void, T> success, Fn<Void, Throwable> err) throws IOException {
+	public void save() {
+		save(null, null);
+	}
+	
+	public void save(Fn<Void, T> success, Fn<Void, Throwable> err) {
 		save(serialize(), success, err);
 	}
 	
-	public void save(String data, final Fn<Void, T> success, final Fn<Void, Throwable> err) throws IOException {
+	public void save(String data, final Fn<Void, T> success, final Fn<Void, Throwable> err) {
 		String rootUrl = rootUrl();
 		
 		if (rootUrl == "")
@@ -124,11 +134,20 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	        }
 	    };
 		
-		if (this.id() < 0) {
-			asyncHttpClient.preparePost(url()).execute(handler);
-		} else {
-			asyncHttpClient.preparePut(url()).execute(handler);
-		}
+	    try {
+			if (this.id() < 0) {
+				asyncHttpClient.preparePost(url()).execute(handler);
+			} else {
+				asyncHttpClient.preparePut(url()).execute(handler);
+			}
+	    } catch (IOException e) {
+	    	if (err != null)
+	    		err.fn(e);
+	    }
+	}
+	
+	public void fetch() throws IOException {
+		fetch(null, null, null);
 	}
 	
 	public void fetch(final Fn<Void, T> success, final Fn<Void, Throwable> err, String [] options) throws IOException {
@@ -166,6 +185,14 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
         channel.subscribe(new BayeuxMessageListener());
 	}
 	
+    // TODO: use GCNotifier to handle clean up
+	// so client code doesn't need to worry about disposing models.
+	public void dispose() {
+		if (bayeuxClient != null) {
+			bayeuxClient.disconnect();
+		}
+	}
+	
 	private void fetchCompleted(Response response, Fn<Void, T> success, Fn<Void, Throwable> err) {
 		try {
 			int statusCode = response.getStatusCode();
@@ -180,7 +207,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			case 205:
 			case 206:
 			default:
-				throw new IllegalArgumentException("Unexpected return code"); // TODO: make a custom exception for this
+				throw new IllegalArgumentException("Unexpected return code: " + statusCode + " url: " + url()); // TODO: make a custom exception for this
 			}
 		} catch (Exception e) {
 			if (err != null)
@@ -213,8 +240,21 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	}
 	
 	private void handleServerDataReturn(Response response, final Fn<Void, T> success) throws IOException {
-		String body = response.getResponseBody();
-		final T result = deserialize(body);
+		final T result;
+		synchronized (receiveLock) {
+			String strEtag = response.getHeader("ETag");
+			if (strEtag != null) {
+				long tag = Long.parseLong(strEtag);
+				if (tag < etag)
+					return;
+				etag = tag;
+			} else {
+				System.out.println("No etag");
+			}
+			
+			String body = response.getResponseBody();
+			result = deserialize(body);
+		}
 		
 		safeThreads.execute(new Runnable() {
 			@Override
@@ -243,13 +283,13 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			idChanged();
 		}
 		
-		sync();
+		resetFromServer();
 		changed();
 	}
 	
 	protected void fieldSet(Field f) {}
 	protected void changed() {}
-	protected void sync() {}
+	protected void resetFromServer() {}
 	protected void idChanged() {}
 	
 	public String serialize() {

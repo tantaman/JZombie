@@ -104,7 +104,8 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 	}
 	
 	@Override
-	protected void sync() {
+	protected void resetFromServer() {
+		System.out.println("Reset from serv");
 		((Listener)emitter.emit).reset(this);
 	}
 	
