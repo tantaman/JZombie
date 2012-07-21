@@ -6,7 +6,6 @@ var _ = require('underscore');
 
 app.use(express.bodyParser());
 
-var nextItemId = 3;
 app.get('/ItemList', function(req, res){
 	res.send(state.ItemList)
 });
@@ -20,22 +19,30 @@ app.get('/ItemList/:id', function(req, res) {
 	})[0]);
 });
 
-app.post('/ItemList', function(req, res) {
-	console.log(req.body);
-
-	state.ItemList.models.unshift(req.body);
-
-	res.send({id: nextItemId++});
-});
-
 app.put('/ItemList/:id', function(req, res) {
 	console.log(req.body);
 
-	_.extend(
-		state.ItemList.models[state.ItemList.models.length - req.body.id - 1], 
+	var models = state.ItemList.models;
+
+	var existingModel = null;
+	models.every(function(model) {
+		if (model.id == req.body.id) {
+			existingModel = model;
+			return false;
+		}
+
+		return true;
+	});
+
+	if (existingModel == null) {
+		models.unshift(req.body);
+	} else {
+		_.extend(
+		existingModel, 
 		req.body);
 
-	bayClient.publish('/ItemList/' + req.params.id, {data: req.body});
+		bayClient.publish('/ItemList/' + req.params.id, {data: req.body});
+	}
 
 	res.send();
 });

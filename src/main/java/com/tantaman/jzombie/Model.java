@@ -1,5 +1,6 @@
 package com.tantaman.jzombie;
 
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -18,8 +19,7 @@ import com.tantaman.jzombie.serializers.ISerializer;
  */
 public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implements IModelComaprable {	
 	@Expose
-	protected volatile long id = -1;
-	protected volatile long cid = -1;
+	protected final String id = UUID.randomUUID().toString();
 	
 	protected static AtomicLong nextCid = new AtomicLong(-1);
 	private volatile Collection<?, T> collection;
@@ -40,15 +40,6 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 	
 	public Model(ExecutorService safeThreads, ISerializer<String, T> s, Class<?> ... listenerInterfaces) {
 		super(safeThreads, s, addListenerInterface(listenerInterfaces, Listener.class));
-		
-		cid = nextCid.incrementAndGet();
-	}
-	
-	@Override
-	protected void resetFromServer() {
-		if (this.id == -1) {
-			this.cid = nextCid.incrementAndGet();
-		}
 	}
 	
 	protected void setCollection(Collection<?, T> collection) {
@@ -64,70 +55,23 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 			return "";
 		}
 	}
-	
-	@Override
-	protected boolean canSubscribe() {
-		return id() != -1;
-	}
-	
-	@Override
-	protected void idChanged() {
-		// TODO: when this happens
-		// we need to update the collection we are in, if any.
-		// We need to update subscriptions if the id ever changes.
-		System.out.println("MY ID CHANGED! WERD!");
-		if (isSubscribed() || wantsSubscription()) {
-			unsubscribe();
-			subscribe();
-		}
-		
-		// TODO:
-		// it could be possible to get an id assigned and have an update made
-		// elsewhere to the object before we subscribe for updates...
-		// so it may be best to use uuids and always be subscribed on that uuid...
-		// and then always use puts and so on....
-		// that would also eliminate the need for client ids
-		// and there would never be id changes
-		// so a lot of things would be completely simplified...
-		
-		// UUID IT IS!
-	}
-	
-	public void setId(long id) {
-		this.id = id;
-		idChanged();
-	}
 
 	@Override
-	public long id() {
+	public String id() {
 		return id;
-	}
-	
-	public long cid() {
-		return cid;
 	}
 	
 	// TODO: should probably make a model wrapper that implements hash code and equals in this
 	// method such that nothing will break when someone overrides hashcode and equals on a model.
 	@Override
 	public int hashCode() {
-		int hashCode;
-		if (id < 0)
-			hashCode = (int)cid;
-		else
-			hashCode = (int)id;
-		
-		return hashCode;
+		return id().hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof IModelComaprable) {
-			if (id < 0) {
-				return ((IModelComaprable)obj).cid() == cid;
-			} else {
-				return ((IModelComaprable)obj).id() == id;
-			}
+			return ((IModelComaprable)obj).id() == id;
 		} else {
 			return false;
 		}

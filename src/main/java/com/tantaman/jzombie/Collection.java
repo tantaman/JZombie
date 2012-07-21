@@ -15,8 +15,7 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 	// I don't think a type adapter will do it for us...
 	@Expose
 	private final List<ModelType> models;
-	private final Set<Long> addedIds;
-	private final Set<Long> addedCids;
+	private final Set<String> addedIds;
 	
 	public Collection(ExecutorService safeThreads) {
 		this(safeThreads, null, null);
@@ -28,8 +27,7 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 		super(safeThreads, s, addListenerInterface(listenerClasses, Listener.class));
 		models = new ArrayList<ModelType>();
 		
-		addedIds = new HashSet<Long>();
-		addedCids = new HashSet<Long>();
+		addedIds = new HashSet<String>();
 	}
 	
 	// TODO: kinda weird the we expect JSON responses for collection to be wrapped... we need to fix that
@@ -49,8 +47,8 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 		return models.iterator();
 	}
 	
-	public ModelType at(long id) {
-		FakeModel m = new FakeModel(id, -1);
+	public ModelType at(String id) {
+		FakeModel m = new FakeModel(id);
 		int idx = models.indexOf(m);
 		return models.get(idx);
 	}
@@ -60,20 +58,13 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 	}
 	
 	public void add(ModelType item) {
-		if (item.id() > 0) {
-			if (addedIds.contains(item.id()))
-				return;
-		} else if (addedCids.contains(item.cid())) {
+		if (addedIds.contains(item.id()))
 			return;
-		}
 		
 		item.setCollection(this);
 		
 		models.add(item);
-		if (item.id() > 0)
-			addedIds.add(item.id());
-		else
-			addedCids.add(item.cid());
+		addedIds.add(item.id());
 		
 		((Listener)emitter.emit).add(item, this);
 	}
@@ -82,14 +73,8 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 		return doRemove(item);
 	}
 	
-	public boolean removeById(long id) {
-		FakeModel m = new FakeModel(id, -1);
-		return doRemove(m);
-	}
-	
-	public boolean removeByCid(long cid) {
-		// TODO: we don't really need cid...  we can do identityHashCode...
-		FakeModel m = new FakeModel(-1, cid);
+	public boolean removeById(String id) {
+		FakeModel m = new FakeModel(id);
 		return doRemove(m);
 	}
 	
@@ -101,7 +86,6 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 		if (idx >= 0) {
 			ModelType removed = models.remove(idx);
 			addedIds.remove(removed.id());
-			addedCids.remove(removed.cid());
 			((Listener)emitter.emit).remove(removed, this);
 			return true;
 		}
@@ -118,8 +102,8 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 	}
 	
 	@Override
-	protected long id() {
-		return -1;
+	protected String id() {
+		return "";
 	}
 
 	public static interface Listener<CollectionType, ItemType extends Model> {
@@ -129,44 +113,27 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 	}
 	
 	private static class FakeModel implements IModelComaprable {
-		private final long id;
-		private final long cid;
+		private final String id;
 		
-		public FakeModel(long id, long cid) {
+		public FakeModel(String id) {
 			this.id = id;
-			this.cid = cid;
 		}
 		
 		@Override
-		public long cid() {
-			return cid;
-		}
-		
-		@Override
-		public long id() {
+		public String id() {
 			return id;
 		}
 		
 		// TODO move these two methods to a shared class
 		@Override
 		public int hashCode() {
-			int hashCode;
-			if (id < 0)
-				hashCode = (int)cid;
-			else
-				hashCode = (int)id;
-			
-			return hashCode;
+			return id.hashCode();
 		}
 		
 		@Override
 		public boolean equals(Object obj) {
 			if (obj instanceof IModelComaprable) {
-				if (id < 0) {
-					return ((IModelComaprable)obj).cid() == cid;
-				} else {
-					return ((IModelComaprable)obj).id() == id;
-				}
+				return ((IModelComaprable)obj).id() == id;
 			} else {
 				return false;
 			}

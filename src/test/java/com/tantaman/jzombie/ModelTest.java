@@ -17,7 +17,6 @@ public class ModelTest {
 		TestClass t = new TestClass("omg", "wee");
 		
 		//t.save(null, null);
-		t.setId(0);
 		t.fetch(null, null, null);
 		
 		try {

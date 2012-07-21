@@ -56,7 +56,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	private final ExecutorService safeThreads;
 	private final Object receiveLock = new Object();
 	
-	private volatile boolean wantsSubscription = false;
 	private ClientSessionChannel updateChannel;
 	/** non volatile since access to etag is controlled by receiveLock **/
 	private long etag;
@@ -90,28 +89,21 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		return new GSonSerializer(builder.create());
 	}
 	
-	protected abstract long id();
+	protected abstract String id();
 	protected abstract String rootUrl();
 	
 	protected String url() {
-		return host() + rootUrl() + "/" + getIdString();
+		return host() + rootUrl() + "/" + id();
 	}
 	
 	protected String channel() {
-		return rootUrl() + "/" + getIdString();
+		return rootUrl() + "/" + id();
 	}
 	
 	protected String host() {
 		return "http://localhost";
 	}
-	
-	protected String getIdString() {
-		if (id() < 0)
-			return "";
-		else
-			return Long.toString(id());
-	}
-	
+
 	protected static Class<?> [] addListenerInterface(Class<?> [] listenerInterfaces, Class<?> interf) {
 		if (listenerInterfaces != null) {
 			listenerInterfaces = Arrays.copyOf(listenerInterfaces, listenerInterfaces.length + 1);
@@ -150,19 +142,11 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	    };
 		
 	    try {
-			if (this.id() < 0) {
-				System.out.println("Posting to url: " + url());
-				asyncHttpClient.preparePost(url())
-					.addHeader("Content-Type", "application/json")
-					.setBody(serialize())
-					.execute(handler);
-			} else {
 				System.out.println("Putting to url: " + url());
 				asyncHttpClient.preparePut(url())
 					.addHeader("Content-Type", "application/json")
 					.setBody(serialize())
 					.execute(handler);
-			}
 	    } catch (IOException e) {
 	    	if (err != null)
 	    		err.fn(e);
@@ -197,10 +181,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		return updateChannel != null;
 	}
 	
-	public boolean wantsSubscription() {
-		return wantsSubscription;
-	}
-	
 	// TODO: shouldn't synchronize on this!
 	public synchronized void unsubscribe() {
 		if (updateChannel != null) {
@@ -209,8 +189,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			updateChannel = null;
 		}
 	}
-	
-	protected abstract boolean canSubscribe();
 	
 	/**
 	 * Will either subscribe for updates from the Bayeux server or
@@ -226,11 +204,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			throw new IllegalStateException("Already subscribed.");
 		}
 		
-		if (!canSubscribe()) {
-			wantsSubscription = true;
-			return;
-		}
-        
         // Can I start subscribing or does handshake need to actually complete first?
         // TODO: we need to clean up the Bayeux client correctly when the model is no longer used.
         updateChannel = bayeuxClient.getChannel(channel());
@@ -317,12 +290,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	}
 	
 	protected T setUpdatedData(String json) {
-		long prevId = id();
 		T result = deserialize(json);
-		
-		if (prevId != id()) {
-			idChanged();
-		}
 		
 		resetFromServer();
 		
@@ -352,7 +320,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	protected void fieldSet(Field f) {}
 	protected void resetFromServer() {}
-	protected void idChanged() {}
 	
 	public String serialize() {
 		return serializer.serialize((T) this);

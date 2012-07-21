@@ -2,17 +2,17 @@ module.exports = {
 	ItemList: {
 		models: [
 			{
-				id: 0,
+				id: '2',
 				name: "Clean Kitchen",
 				completed: false
 			},
 			{
-				id: 1,
+				id: '1',
 				name: "Do Laundry",
 				completed: false
 			},
 			{
-				id: 2,
+				id: '0',
 				name: "Read",
 				compeleted: false
 			}
