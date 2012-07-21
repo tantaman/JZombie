@@ -15,6 +15,8 @@ public class Item extends Model<Item> {
 		
 		this.completed = completed;
 		this.name = name;
+		
+		subscribe();
 	}
 	
 	private Item() {

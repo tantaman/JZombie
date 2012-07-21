@@ -3,3 +3,4 @@
 -model needs to update collection when its id changes
 -model needs to re-subscribe to pub/sub when its id changes
 -need to be smarter on de-serializing and re-filling ourselves.  We don't actually have to reconstruct the objects!  b/c they already exist.
+-add etag support

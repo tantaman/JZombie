@@ -66,11 +66,31 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 	}
 	
 	@Override
+	protected boolean canSubscribe() {
+		return id() != -1;
+	}
+	
+	@Override
 	protected void idChanged() {
 		// TODO: when this happens
 		// we need to update the collection we are in, if any.
 		// We need to update subscriptions if the id ever changes.
 		System.out.println("MY ID CHANGED! WERD!");
+		if (isSubscribed() || wantsSubscription()) {
+			unsubscribe();
+			subscribe();
+		}
+		
+		// TODO:
+		// it could be possible to get an id assigned and have an update made
+		// elsewhere to the object before we subscribe for updates...
+		// so it may be best to use uuids and always be subscribed on that uuid...
+		// and then always use puts and so on....
+		// that would also eliminate the need for client ids
+		// and there would never be id changes
+		// so a lot of things would be completely simplified...
+		
+		// UUID IT IS!
 	}
 	
 	public void setId(long id) {

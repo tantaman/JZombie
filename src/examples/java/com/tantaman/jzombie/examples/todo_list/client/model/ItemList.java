@@ -7,4 +7,13 @@ public class ItemList extends Collection<ItemList, Item> {
 	public ItemList() {
 		super(SwingEDTAsExecutor.instance);
 	}
+	
+	@Override
+	protected void resetFromServer() {
+		super.resetFromServer();
+		
+		for (Item item : this) {
+			item.subscribe();
+		}
+	}
 }

@@ -18,13 +18,11 @@ import org.eclipse.jetty.websocket.WebSocketClientFactory;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.InstanceCreator;
-import com.google.gson.annotations.Expose;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import com.tantaman.commons.Fn;
 import com.tantaman.commons.concurrent.NamedThreadFactory;
-import com.tantaman.commons.lang.ObjectUtils;
 import com.tantaman.commons.listeners.AbstractMultiEventSource;
 import com.tantaman.jzombie.serializers.GSonSerializer;
 import com.tantaman.jzombie.serializers.ISerializer;
@@ -36,6 +34,19 @@ import com.tantaman.jzombie.serializers.ISerializer;
 public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource {
 	private static final ScheduledExecutorService bayeuxService = Executors.newScheduledThreadPool(4, new NamedThreadFactory("JZombie-Client-BayeuxService"));
 	private static final WebSocketClientFactory webSocketClientFactory = new WebSocketClientFactory();
+	private static final ClientSession bayeuxClient;
+	static {
+		try {
+			webSocketClientFactory.start();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		ClientTransport transport = WebSocketTransport.create(null, webSocketClientFactory, bayeuxService);
+		// TODO: THIS NEEDS TO BE CONFIGURABLE!  And even configurable by object if the user so desires!
+		// Is the bayeux client light weight enough to make one per object? . . . .
+    	bayeuxClient = new BayeuxClient("http://localhost/bayeux", transport);
+    	bayeuxClient.handshake();
+	}
 	
 	protected final ISerializer<String, T> serializer;
 	
@@ -45,13 +56,13 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	private final ExecutorService safeThreads;
 	private final Object receiveLock = new Object();
 	
-	private volatile ClientSession bayeuxClient;
+	private volatile boolean wantsSubscription = false;
+	private ClientSessionChannel updateChannel;
 	/** non volatile since access to etag is controlled by receiveLock **/
 	private long etag;
 	
 	// TODO: fetch returns need to be synchronized?
 	// Synch them with publish receptions at least so synch em anyhow...
-	
 	public ModelCollectionCommon(ExecutorService safeThreads, ISerializer<String, T> s, Class[] listenerClasses) {
 		super(true, listenerClasses);
 		
@@ -80,7 +91,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	}
 	
 	protected abstract long id();
-		
 	protected abstract String rootUrl();
 	
 	protected String url() {
@@ -89,10 +99,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	protected String channel() {
 		return rootUrl() + "/" + getIdString();
-	}
-	
-	protected String bayeuxMountPoint() {
-		return host() + "/bayeux";
 	}
 	
 	protected String host() {
@@ -187,27 +193,54 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	    asyncHttpClient.prepareGet(url()).execute(handler);
 	}
 	
+	public boolean isSubscribed() {
+		return updateChannel != null;
+	}
+	
+	public boolean wantsSubscription() {
+		return wantsSubscription;
+	}
+	
+	// TODO: shouldn't synchronize on this!
+	public synchronized void unsubscribe() {
+		if (updateChannel != null) {
+			updateChannel.unsubscribe();
+			updateChannel.release();
+			updateChannel = null;
+		}
+	}
+	
+	protected abstract boolean canSubscribe();
+	
+	/**
+	 * Will either subscribe for updates from the Bayeux server or
+	 * set a flag indicating that the object wants a subscription.
+	 * 
+	 * An object is flagged as wanting a subscription
+	 * if it tries to subscribe while its update channel url is still
+	 * malformed.  Once the update channel url is well formed
+	 * subscription will take place.
+	 */
 	public synchronized void subscribe() {
-		if (bayeuxClient != null) {
+		if (updateChannel != null) {
 			throw new IllegalStateException("Already subscribed.");
 		}
 		
-		ClientTransport transport = WebSocketTransport.create(null, webSocketClientFactory, bayeuxService);
-        bayeuxClient = new BayeuxClient(bayeuxMountPoint(), transport);
-        bayeuxClient.handshake();
+		if (!canSubscribe()) {
+			wantsSubscription = true;
+			return;
+		}
         
         // Can I start subscribing or does handshake need to actually complete first?
         // TODO: we need to clean up the Bayeux client correctly when the model is no longer used.
-        ClientSessionChannel channel = bayeuxClient.getChannel(channel());
-        channel.subscribe(new BayeuxMessageListener());
+        updateChannel = bayeuxClient.getChannel(channel());
+        updateChannel.subscribe(new BayeuxMessageListener());
 	}
 	
     // TODO: use GCNotifier to handle clean up
 	// so client code doesn't need to worry about disposing models.
-	public void dispose() {
-		if (bayeuxClient != null) {
-			bayeuxClient.disconnect();
-		}
+	public synchronized void dispose() {
+		unsubscribe();
 	}
 	
 	private void fetchCompleted(Response response, Fn<Void, T> success, Fn<Void, Throwable> err) {
@@ -239,7 +272,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			int statusCode = response.getStatusCode();
 			switch (statusCode) {
 			case 200:
-				// server should only return an id . . . ?
 				handleServerDataReturn(response, success);
 				break;
 			case 204:
@@ -247,7 +279,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 					success.fn(null);
 				break;
 			default:
-				throw new IllegalArgumentException("Unexpected return code: " + statusCode + " url: " + url());
+				throw new IllegalArgumentException("Unexpected return code: " + statusCode + " url: " + url()); // TODO: make a custom exception for this
 			}
 		} catch (Exception e) {
 			if (err != null)
@@ -257,10 +289,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		}
 	}
 	
-	// TODO: we could be a lot smarter and isntead of actually de-serializing and then re-filling our object
-	// just re-fill our object.
 	private void handleServerDataReturn(Response response, final Fn<Void, T> success) throws IOException {
-		//final T result;
 		final String body;
 		synchronized (receiveLock) {
 			String strEtag = response.getHeader("ETag");
@@ -336,6 +365,10 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	private class BayeuxMessageListener implements ClientSessionChannel.MessageListener {
 		@Override
 		public void onMessage(ClientSessionChannel channel, Message message) {
+			// TODO:
+			// How do we want to ensure that we don't respond to the updates we made?
+			// client ids . . .?  can put the client id in query string for rest data...
+			// can put client id back into broadcast msg and ignore those from ourselves.
 			System.out.println("GOT A MESSAGE! WOO!!");
 		}
 	}

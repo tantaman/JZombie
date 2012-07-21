@@ -35,11 +35,15 @@ app.put('/ItemList/:id', function(req, res) {
 		state.ItemList.models[state.ItemList.models.length - req.body.id - 1], 
 		req.body);
 
+	bayClient.publish('/ItemList/' + req.params.id, {data: req.body});
+
 	res.send();
 });
 
 var bayeux = new faye.NodeAdapter({mount: '/bayeux', timeout: 45});
 bayeux.attach(app);
+
+var bayClient = bayeux.getClient();
 
 app.listen(80);
 

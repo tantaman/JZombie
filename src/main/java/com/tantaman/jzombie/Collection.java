@@ -35,6 +35,10 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 	// TODO: kinda weird the we expect JSON responses for collection to be wrapped... we need to fix that
 	// by implementing our own custom serialize, deserialze and setItemData
 	
+	protected boolean canSubscribe() {
+		return true;
+	}
+	
 	@Override
 	protected String rootUrl() {
 		return "/" + this.getClass().getSimpleName();
