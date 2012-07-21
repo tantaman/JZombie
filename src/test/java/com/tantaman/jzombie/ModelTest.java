@@ -14,11 +14,11 @@ public class ModelTest {
 	private static final SwingEDTAsExecutor swingExec = new SwingEDTAsExecutor();
 	@Test
 	public void test() throws IOException {
-		TestClass t = new TestSubClass("omg", "wee");
+		TestClass t = new TestClass("omg", "wee");
 		
 		//t.save(null, null);
 		t.setId(0);
-		t.fetch(null, null);
+		t.fetch(null, null, null);
 		
 		try {
 			Thread.sleep(5000);
@@ -32,26 +32,26 @@ public class ModelTest {
 		@Expose
 		public final String itemOne;
 		@Expose
-		protected TestClassTwo tc = new TestClassTwo();
+		public final String itemTwo;
+		@Expose
+		private TestClassTwo tc = new TestClassTwo();
 		
-		public TestClass(String wtf) {
+		public TestClass(String wtf, String woah) {
 			super(swingExec);
 			this.itemOne = wtf;
-		}
-	}
-	
-	public static class TestSubClass extends TestClass {
-		@Expose
-		public final String itemTwo;
-		
-		public TestSubClass(String wtf, String woah) {
-			super(wtf);
 			this.itemTwo = woah;
 		}
 		
+		private TestClass() {super(swingExec); this.itemOne =""; this.itemTwo = "";}
+		
 		@Override
 		public String toString() {
-			return itemOne + " " + itemTwo + " " + tc;
+			return itemOne + itemTwo + tc;
+		}
+		
+		@Override
+		protected void changed() {
+			System.out.println("Model changed");
 		}
 	}
 	
@@ -61,11 +61,6 @@ public class ModelTest {
 		
 		public TestClassTwo() {
 			super(swingExec);
-		}
-		
-		@Override
-		public String toString() {
-			return Integer.toString(one);
 		}
 	}
 }
