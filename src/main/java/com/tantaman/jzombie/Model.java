@@ -1,6 +1,7 @@
 package com.tantaman.jzombie;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.gson.annotations.Expose;
 import com.tantaman.jzombie.serializers.ISerializer;
@@ -18,6 +19,9 @@ import com.tantaman.jzombie.serializers.ISerializer;
 public class Model<T extends Model<T>> extends ModelCollectionCommon<T> {	
 	@Expose
 	protected volatile long id = -1;
+	protected volatile long cid = -1;
+	
+	protected static AtomicLong nextCid = new AtomicLong(-1);
 	
 	/**
 	 * @param safeThreads Thread(s) to use when modifying model data after it has been returned by the server and deserialized.
@@ -33,6 +37,8 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> {
 	
 	public Model(ExecutorService safeThreads, ISerializer<String, T> s, Class<?> ... listenerInterfaces) {
 		super(safeThreads, s, addListenerInterface(listenerInterfaces, Listener.class));
+		
+		cid = nextCid.incrementAndGet();
 	}
 	
 	public void subscribe() {

@@ -195,11 +195,13 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			}
 		}, ModelCollectionCommon.class);
 		
+		dataSetFromServer();
 		changed();
 	}
 	
 	protected void fieldSet(Field f) {}
 	protected void changed() {}
+	protected void dataSetFromServer() {}
 	
 	public String serialize() {
 		return serializer.serialize((T) this);

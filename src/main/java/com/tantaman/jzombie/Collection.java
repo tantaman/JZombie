@@ -2,6 +2,8 @@ package com.tantaman.jzombie;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 import com.google.gson.annotations.Expose;
@@ -13,17 +15,34 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 	@Expose
 	private final List<ItemType> items;
 	
+	private final Map<Long, ItemType> itemsById;
+	private final Map<Long, ItemType> itemsByCid;
+	
+	public Collection(ExecutorService safeThreads) {
+		this(safeThreads, null, null);
+	}
+	
+	// TODO: need to know when fetch completes.
+	
 	public Collection(ExecutorService safeThreads, ISerializer<String, T> s, Class<?> ... listenerClasses) {
 		super(safeThreads, s, addListenerInterface(listenerClasses, Listener.class));
 		items = new ArrayList<ItemType>();
+		itemsById = new ConcurrentHashMap<Long, ItemType>();
 	}
 	
-	public void add() {
-		
+	public void add(ItemType item) {
+		items.add(item);
 	}
 	
-	public void remove() {
-		
+	public void remove(ItemType item) {
+		boolean removed = items.remove(item);
+		if (removed) {
+			((Listener)emitter.emit).remove(item, this);
+		}
+	}
+	
+	public void remove(long id) {
+		// find by id. . . 
 	}
 
 	public void subscribe() {
@@ -35,9 +54,9 @@ public class Collection<T, ItemType extends Model> extends ModelCollectionCommon
 		return -1;
 	}
 
-	public static interface Listener {
-		public void add();
-		public void remove();
-		public void reset();
+	public static interface Listener<CollectionType, ItemType extends Model> {
+		public void add(ItemType item, Collection<CollectionType, ItemType> collection);
+		public void remove(ItemType item, Collection<CollectionType, ItemType> collection);
+		public void reset(Collection<CollectionType, ItemType> newModels);
 	}
 }
