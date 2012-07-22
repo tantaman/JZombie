@@ -22,7 +22,7 @@ import com.tantaman.jzombie.examples.todo_list.client.model.Item;
  */
 public class ItemView extends JPanel {
 	private Item model;
-	private final ItemListener listener = new ItemListener();
+	private final ModelListener listener = new ModelListener();
 	
 	private JLabel name;
 	private JCheckBox completed;
@@ -74,19 +74,14 @@ public class ItemView extends JPanel {
 		return this;
 	}
 	
-	private class ItemListener implements Model.Listener<Item>, Item.ItemListener {
+	private class ModelListener implements Model.Listener<Item> {
 		@Override
-		public void sync(Item item) {
-			render();
-		}
-
+		public void sync(Item item) {}
+		
 		@Override
-		public void nameChanged(String name) {
-			render();
-		}
-
-		@Override
-		public void completedChanged(boolean completed) {
+		public void change(Item model) {
+			System.out.println("RE RENDERING");
+			System.out.println(model);
 			render();
 		}
 	}

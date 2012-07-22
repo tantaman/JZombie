@@ -31,6 +31,7 @@ import com.tantaman.jzombie.serializers.ISerializer;
 // I assume we can't do publishes on the same socket as fetches or can we???
 // Other: the server can fill in a seq number for us and we can discard anything less than the latest seq we have received
 // We could use the ETag field of the HTTP response headers!!
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource {
 	private static final ScheduledExecutorService bayeuxService = Executors.newScheduledThreadPool(4, new NamedThreadFactory("JZombie-Client-BayeuxService"));
 	private static final WebSocketClientFactory webSocketClientFactory = new WebSocketClientFactory();
@@ -50,6 +51,11 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	protected final ISerializer<String, T> serializer;
 	
+	/**
+	 * Type erasure forces us to to ModelUpdateMessage instead of ModelUpdateMessage<T>
+	 */
+	private final ISerializer<String, ModelUpdateMessage> updateMessageSerializer;
+	
 	// TODO: eventaully we should generalize to not be HTTP only.
 	// Could take an IClient.
 	private final AsyncHttpClient asyncHttpClient;
@@ -62,20 +68,22 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	// TODO: fetch returns need to be synchronized?
 	// Synch them with publish receptions at least so synch em anyhow...
-	public ModelCollectionCommon(ExecutorService safeThreads, ISerializer<String, T> s, Class[] listenerClasses) {
+	public ModelCollectionCommon(ExecutorService safeThreads, Class[] listenerClasses) {
 		super(true, listenerClasses);
 		
-		if (s == null) {
-			serializer = createDefaultSerializer();
-		} else {
-			serializer = s;
-		}
+		serializer = createSerializer();
+		updateMessageSerializer = createUpdateMessageSerializer();
 		
 		asyncHttpClient = new AsyncHttpClient();
 		this.safeThreads = safeThreads;
 	}
 	
-	protected ISerializer<String, T> createDefaultSerializer() {
+	protected ISerializer<String, T> createSerializer() {
+		GsonBuilder builder = createBuilder();
+		return new GSonSerializer(builder.create());
+	}
+	
+	private GsonBuilder createBuilder() {
 		GsonBuilder builder = new GsonBuilder();
 		final T self = (T)this;
 		
@@ -85,6 +93,19 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 				return self;
 			}
 		}).excludeFieldsWithoutExposeAnnotation();
+		
+		return builder;
+	}
+	
+	protected ISerializer<String, ModelUpdateMessage> createUpdateMessageSerializer() {
+		GsonBuilder builder = createBuilder();
+		
+		builder.registerTypeAdapter(ModelCollectionCommon.class, new InstanceCreator<ModelCollectionCommon>() {
+			@Override
+			public ModelCollectionCommon createInstance(Type type) {
+				return ModelCollectionCommon.this;
+			}
+		});
 		
 		return new GSonSerializer(builder.create());
 	}
@@ -288,7 +309,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		});
 	}
 	
-	protected T setUpdatedData(String json) {
+	private T setUpdatedData(String json) {
 		T result = deserialize(json);
 		
 		resetFromServer();
@@ -331,15 +352,20 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	private class BayeuxMessageListener implements ClientSessionChannel.MessageListener {
 		@Override
 		public void onMessage(ClientSessionChannel channel, Message message) {
-			// TODO:
-			// How do we want to ensure that we don't respond to the updates we made?
-			// client ids . . .?  can put the client id in query string for rest data...
-			// can put client id back into broadcast msg and ignore those from ourselves.
 			System.out.println("GOT A MESSAGE! WOO!!");
 			String json = message.getJSON();
 			
-			//serializer.deserialize(json, ModelUpdateMessage.class);
-			//Need to make some new type of serializer for model update messages....
+			// TODO: we need to peek at the message first and pull its sequence number and discard it if it is old!
+			// TODO: we can also keep a digest of the last serialization of our model.
+			// if the digest of the returned serialization of the same as our last digest
+			// then discard the message as well.
+			ModelUpdateMessage msg = updateMessageSerializer.deserialize(json, ModelUpdateMessage.class);
+			System.out.println(msg.data);
+			System.out.println(ModelCollectionCommon.this);
+			System.out.println("Emitting");
+			resetFromServer();
+			//System.out.println(msg);
+			//System.out.println(json);
 		}
 	}
 }

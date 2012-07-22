@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 import com.google.gson.annotations.Expose;
-import com.tantaman.jzombie.serializers.ISerializer;
 
 public class Collection<T, ModelType extends Model> extends ModelCollectionCommon<T> implements Iterable<ModelType> {
 	// TODO: will this get serialized correctly?  Doubtful... so how do we do it?
@@ -18,13 +17,13 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 	private final Set<String> addedIds;
 	
 	public Collection(ExecutorService safeThreads) {
-		this(safeThreads, null, null);
+		this(safeThreads, null);
 	}
 	
 	// TODO: need to know when fetch completes.
 	
-	public Collection(ExecutorService safeThreads, ISerializer<String, T> s, Class<?> ... listenerClasses) {
-		super(safeThreads, s, addListenerInterface(listenerClasses, Listener.class));
+	public Collection(ExecutorService safeThreads, Class<?> ... listenerClasses) {
+		super(safeThreads, addListenerInterface(listenerClasses, Listener.class));
 		models = new ArrayList<ModelType>();
 		
 		addedIds = new HashSet<String>();

@@ -4,3 +4,6 @@
 -model needs to re-subscribe to pub/sub when its id changes
 -need to be smarter on de-serializing and re-filling ourselves.  We don't actually have to reconstruct the objects!  b/c they already exist.
 -add etag support
+
+-add change() event back in
+-collect previous values from model before applying server changes then compare with new values (don't descend into child objects?)

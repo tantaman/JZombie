@@ -5,7 +5,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.gson.annotations.Expose;
-import com.tantaman.jzombie.serializers.ISerializer;
 
 /*
  * When using this class, please ensure that you understand
@@ -21,7 +20,7 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 	@Expose
 	protected final String id = UUID.randomUUID().toString();
 	// TODO: base 64 and uri encode the uuid
-	//Base64Utils.trim(new sun.misc.BASE64Encoder().encode(UUIDUtils.asByteArray(
+	//UUIDUtils.asURLSafeBase64String
 	
 	protected static AtomicLong nextCid = new AtomicLong(-1);
 	private volatile Collection<?, T> collection;
@@ -37,11 +36,7 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 	}
 	
 	public Model(ExecutorService safeThreads, Class<?> ... listenerInterfaces) {
-		this(safeThreads, null, listenerInterfaces);
-	}
-	
-	public Model(ExecutorService safeThreads, ISerializer<String, T> s, Class<?> ... listenerInterfaces) {
-		super(safeThreads, s, addListenerInterface(listenerInterfaces, Listener.class));
+		super(safeThreads, addListenerInterface(listenerInterfaces, Listener.class));
 	}
 	
 	protected void setCollection(Collection<?, T> collection) {
@@ -81,5 +76,6 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 	
 	public static interface Listener<T> {
 		public void sync(T model);
+		public void change(T model);
 	}
 }

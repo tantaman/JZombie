@@ -11,7 +11,6 @@ public class ItemList extends Collection<ItemList, Item> {
 	@Override
 	protected void resetFromServer() {
 		super.resetFromServer();
-		
 		for (Item item : this) {
 			item.subscribe();
 		}
