@@ -71,6 +71,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	protected ISerializer<String, T> createSerializer() {
 		GsonBuilder builder = createBuilder();
+		// TODO: our GsonSerializer should ignore @Expose for de-serialization
 		return new GSonSerializer(builder.create());
 	}
 	
@@ -117,6 +118,14 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		}
 		
 		return listenerInterfaces;
+	}
+	
+	/**
+	 * Only save the specified fields instead of all fields.
+	 * @param which
+	 */
+	public void save(String ... which) {
+		throw new UnsupportedOperationException("Not yet implemented!");
 	}
 	
 	public void save() {
