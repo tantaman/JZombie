@@ -13,35 +13,18 @@ public class Item extends Model<Item> {
 	private String name;
 	
 	public Item(boolean completed, String name) {
-		super(SwingEDTAsExecutor.instance); //, ItemListener.class
+		super(SwingEDTAsExecutor.instance);
 		
 		this.completed = completed;
 		this.name = name;
 	}
 	
 	private Item() {
-		super(SwingEDTAsExecutor.instance); //, ItemListener.class
-	}
-	
-	@Override
-	protected void setCollection(Collection<?, Item> collection) {
-		super.setCollection(collection);
-		subscribe();
-	}
-	
-	public boolean completed() {
-		return completed;
+		super(SwingEDTAsExecutor.instance);
 	}
 	
 	public String name() {
 		return name;
-	}
-	
-	@Override
-	protected void endServerReset() {
-		System.out.println("CHANGED ON SERVER");
-		// TODO: base model class needs to tell us if anything actually changed within the model...
-		((Model.Listener)emitter.emit).change(this);
 	}
 	
 	// TODO: we really should do some byte code manipulation to generate the emit, check if new val != old val and if we are in a change event.
@@ -50,8 +33,23 @@ public class Item extends Model<Item> {
 		((Model.Listener)emitter.emit).change(this);
 	}
 	
+	public boolean completed() {
+		return completed;
+	}
+	
 	public void completed(boolean newCompleted) {
 		completed = newCompleted;
+		((Model.Listener)emitter.emit).change(this);
+	}
+	
+	@Override
+	protected void setCollection(Collection<?, Item> collection) {
+		super.setCollection(collection);
+		subscribe();
+	}
+	
+	@Override
+	protected void endServerReset() {
 		((Model.Listener)emitter.emit).change(this);
 	}
 	
@@ -59,9 +57,4 @@ public class Item extends Model<Item> {
 	public String toString() {
 		return name + " " + completed;
 	}
-	
-//	public static interface ItemListener {
-//		public void nameChanged(String name);
-//		public void completedChanged(boolean completed);
-//	}
 }

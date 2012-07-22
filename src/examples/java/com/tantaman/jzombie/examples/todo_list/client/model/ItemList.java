@@ -8,10 +8,4 @@ public class ItemList extends Collection<ItemList, Item> {
 		super(SwingEDTAsExecutor.instance, Item.class);
 		subscribe();
 	}
-	
-	@Override
-	protected void endServerReset() {
-		super.endServerReset();
-		System.out.println("Get reset...");
-	}
 }

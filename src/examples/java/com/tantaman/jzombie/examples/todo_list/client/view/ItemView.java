@@ -25,14 +25,12 @@ public class ItemView extends JPanel {
 	private final ModelListener listener = new ModelListener();
 	
 	private JLabel name;
-	private JCheckBox completed;
-	
+	private JCheckBox completed;	
 	private Map fontAttrs;
 	
 	public ItemView(Item model) {
 		// This setting up of the components would be moved to a template class
 		this.model = model;
-		this.model.addListener(listener);
 		
 		name = new JLabel();
 		completed = new JCheckBox();
@@ -49,7 +47,6 @@ public class ItemView extends JPanel {
 		completed.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				System.out.println("ACTION EVENT");
 				if (completed.isSelected()) {
 					model.completed(true);
 				} else {
@@ -58,6 +55,8 @@ public class ItemView extends JPanel {
 				model.save();
 			}
 		});
+		
+		model.addListener(listener);
 	}
 	
 	public Component render() {
@@ -80,8 +79,6 @@ public class ItemView extends JPanel {
 		
 		@Override
 		public void change(Item model) {
-			System.out.println("RE RENDERING");
-			System.out.println(model);
 			render();
 		}
 	}

@@ -369,6 +369,15 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 					String strEtag = dataObject.getString("etag");
 					if (strEtag.equals(etag)) {// equivalent objects
 						return;
+					} else {
+						// Update our etag to what we received.
+						// This resolves the race condition of
+						// 1. updating our model locally
+						// 2. receiving a model update from the server
+						// 3. publishing our local model update to the server (server and local state are now out of sync)
+						// Since the etag has been updated then we won't ignore the publish we sent out
+						// when it comes back to us.
+						etag = strEtag;
 					}
 				}
 				switch (verb) {
