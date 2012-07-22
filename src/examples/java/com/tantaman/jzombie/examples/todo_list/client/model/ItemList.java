@@ -5,14 +5,13 @@ import com.tantaman.jzombie.Collection;
 
 public class ItemList extends Collection<ItemList, Item> {	
 	public ItemList() {
-		super(SwingEDTAsExecutor.instance);
+		super(SwingEDTAsExecutor.instance, Item.class);
+		subscribe();
 	}
 	
 	@Override
 	protected void endServerReset() {
 		super.endServerReset();
-		for (Item item : this) {
-			item.subscribe();
-		}
+		System.out.println("Get reset...");
 	}
 }

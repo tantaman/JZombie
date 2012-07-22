@@ -26,7 +26,7 @@ public class CollectionTest {
 
 	public static class MyCollection extends Collection<MyCollection, MyModel> {		
 		public MyCollection() {
-			super(SwingEDTAsExecutor.instance);
+			super(SwingEDTAsExecutor.instance, MyModel.class);
 		}
 	}
 	

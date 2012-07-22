@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -14,8 +15,10 @@ import org.cometd.bayeux.client.ClientSessionChannel;
 import org.cometd.client.BayeuxClient;
 import org.cometd.client.transport.ClientTransport;
 import org.cometd.websocket.client.WebSocketTransport;
-import org.eclipse.jetty.util.security.Credential.MD5;
 import org.eclipse.jetty.websocket.WebSocketClientFactory;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.InstanceCreator;
@@ -28,6 +31,18 @@ import com.tantaman.commons.listeners.AbstractMultiEventSource;
 import com.tantaman.jzombie.serializers.GSonSerializer;
 import com.tantaman.jzombie.serializers.ISerializer;
 
+/**
+ * This class is in a very early exploratory phase.  The 
+ * pub/sub update feature is currently just hacked in to explore
+ * different types of interfaces.
+ * 
+ * Since this is the case, custom serializers can be written for all things EXCEPT the pub/sub interface.
+ * The pub/sub interface requires specifically formatted json data at the moment.
+ * 
+ * @author tantaman
+ *
+ * @param <T>
+ */
 // TODO: need to sync publishes with fetches!!!
 // I assume we can't do publishes on the same socket as fetches or can we???
 // Other: the server can fill in a seq number for us and we can discard anything less than the latest seq we have received
@@ -65,7 +80,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	private ClientSessionChannel updateChannel;
 	/** non volatile since access to etag is controlled by receiveLock **/
-	private long etag;
+	private volatile String etag;
 	
 	// TODO: fetch returns need to be synchronized?
 	// Synch them with publish receptions at least so synch em anyhow...
@@ -119,7 +134,12 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	}
 	
 	protected String channel() {
-		return rootUrl() + "/" + id();
+		String id = id();
+		if (id == "" || id == null) {
+			return rootUrl();
+		} else {
+			return rootUrl() + "/" + id();
+		}
 	}
 	
 	protected String host() {
@@ -164,14 +184,20 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	    };
 		
 	    try {
-				asyncHttpClient.preparePut(url())
-					.addHeader("Content-Type", "application/json")
-					.setBody(data)
-					.execute(handler);
+	    	etag = etag();
+			asyncHttpClient.preparePut(url())
+				.addHeader("Content-Type", "application/json")
+				.addQueryParameter("etag", etag)
+				.setBody(data)
+				.execute(handler);
 	    } catch (IOException e) {
 	    	if (err != null)
 	    		err.fn(e);
 	    }
+	}
+	
+	protected String etag() {
+		return UUID.randomUUID().toString();
 	}
 	
 	public void fetch() throws IOException {
@@ -233,6 +259,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
     // TODO: use GCNotifier to handle clean up
 	// so client code doesn't need to worry about disposing models.
 	public synchronized void dispose() {
+		System.out.println("DISPOSING");
 		unsubscribe();
 	}
 	
@@ -286,11 +313,10 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		final String body;
 		synchronized (receiveLock) {
 			String strEtag = response.getHeader("ETag");
-			if (strEtag != null) {
-				long tag = Long.parseLong(strEtag);
-				if (tag < etag)
+			if (strEtag != null && strEtag != "") {
+				if (strEtag.equals(etag))
 					return;
-				etag = tag;
+				etag = strEtag;
 			} else {
 				System.out.println("No etag");
 			}
@@ -317,27 +343,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		return result;
 	}
 	
-//	protected void setUpdatedData(T data) {
-//		boolean idChanged = false;
-//		if (((ModelCollectionCommon)data).id() != id()) {
-//			idChanged = true;
-//		}
-//		
-//		Field [] fields = ObjectUtils.setFields(this, data, new Fn<Boolean, Field>() {
-//			@Override
-//			public Boolean fn(Field param) {
-//				return param.getAnnotation(Expose.class) != null;
-//			}
-//		}, ModelCollectionCommon.class);
-//		
-//		if (idChanged) {
-//			idChanged();
-//		}
-//		
-//		resetFromServer();
-//		changed();
-//	}
-	
 	protected void fieldSet(Field f) {}
 	protected void beginServerReset() {}
 	protected void endServerReset() {}
@@ -352,51 +357,38 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	
 	// TODO: ugh.. the serializer should take care of this.
 	// The ability to pass in custom serializers is now effectively useless.
+	protected void handleUnkownUpdateMessage(JSONObject dataObject) {}
 	private void updateMessageReceived(String json) {
 		synchronized (receiveLock) {
-			System.out.println("GOT A MESSAGE! WOO!!");
+			try {
+				JSONObject messageObject = new JSONObject(new JSONTokener(json));
 
-			// TODO: we need to peek at the message first and pull its sequence number and discard it if it is old!
-			// TODO: we can also keep a digest of the last serialization of our model.
-			// if the digest of the returned serialization of the same as our last digest
-			// then discard the message as well.
-			System.out.println(json);
-			//ModelUpdateMessage msg = updateMessageSerializer.deserialize(json, ModelUpdateMessage.class);
-
-			int dataStartCurly = 0;
-			int dataEndCurly = json.length();
-			
-			// TODO: we need to update the receive message to pass a verb, like it used to.
-			// TODO: we need to write a GSON wrapper to prepare certain items for GSON
-			int curlyCount = 0;
-			for (int i = 0; i < json.length(); ++i) {
-				if (json.charAt(i) == '{') {
-					++curlyCount;
+				JSONObject dataObject = (JSONObject) messageObject.get("data");
+				String verb = dataObject.getString("verb");
+				if (dataObject.has("etag")) {
+					String strEtag = dataObject.getString("etag");
+					if (strEtag.equals(etag)) {// equivalent objects
+						return;
+					}
 				}
-				if (curlyCount == 3) {
-					dataStartCurly = i;
+				switch (verb) {
+				case "update":
+				case "reset":
+					final String modelObject = dataObject.get("model").toString();
+					safeThreads.execute(new Runnable() {
+						@Override
+						public void run() {
+							setUpdatedData(modelObject);
+						}
+					});
+					break;
+				default:
+					handleUnkownUpdateMessage(dataObject);
 					break;
 				}
+			} catch (JSONException e) {
+				e.printStackTrace();
 			}
-			
-			curlyCount = 0;
-			for (int i = json.length() - 1; i > -1; --i) {
-				if (json.charAt(i) == '}') {
-					++curlyCount;
-				}
-				if (curlyCount == 3) {
-					dataEndCurly = i;
-					break;
-				}
-			}
-			
-			final String dataJson = json.substring(dataStartCurly, dataEndCurly + 1).trim();
-			safeThreads.execute(new Runnable() {
-				@Override
-				public void run() {
-					setUpdatedData(dataJson);
-				}
-			});
 		}
 	}
 	

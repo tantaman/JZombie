@@ -21,6 +21,7 @@ app.get('/ItemList/:id', function(req, res) {
 
 app.put('/ItemList/:id', function(req, res) {
 	console.log(req.body);
+	var etag = req.query.etag;
 
 	var models = state.ItemList.models;
 
@@ -36,13 +37,29 @@ app.put('/ItemList/:id', function(req, res) {
 
 	if (existingModel == null) {
 		models.unshift(req.body);
-		bayClient.publish('/ItemList/' + req.params.id, {verb: "update", model: existingModel});
+		var newModel = existingModel = req.body;
 	} else {
 		_.extend(
 		existingModel, 
 		req.body);
+	}
 
-		bayClient.publish('/ItemList/' + req.params.id, {verb: "update", model: existingModel});
+	var msg = {
+			verb: "update", 
+			model: existingModel
+		};
+
+	if (etag != null)
+		msg.etag = etag;
+
+	bayClient.publish('/ItemList/' + req.params.id, msg);
+	if (newModel) {
+		console.log("Publishing reset for item list");
+		bayClient.publish('/ItemList',
+		{
+			verb: "reset",
+			model: state.ItemList
+		});
 	}
 
 	res.send();

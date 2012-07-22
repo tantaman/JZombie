@@ -39,14 +39,14 @@ public class ItemListView extends JPanel {
 	
 	private class ModelListener implements Collection.Listener<ItemList, Item> {
 		@Override
-		public void add(Item item, Collection<ItemList, Item> collection) {
+		public void add(Item item, Collection<ItemList, Item> collection, int index) {
 			ItemView itemView = new ItemView(item);
-			ItemListView.this.add(itemView.render(), 0);
+			ItemListView.this.add(itemView.render(), index);
 			revalidate();
 		}
 
 		@Override
-		public void remove(Item item, Collection<ItemList, Item> collection) {
+		public void remove(Item item, Collection<ItemList, Item> collection, int index) {
 		}
 
 		@Override

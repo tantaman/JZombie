@@ -39,7 +39,7 @@ public class ItemInput extends JPanel {
 				String name = textInput.getText();
 				if (name != null && name != "") {
 					Item item = new Item(false, name);
-					model.add(item);
+					model.unshift(item);
 					item.save();
 					
 					textInput.setText("");
