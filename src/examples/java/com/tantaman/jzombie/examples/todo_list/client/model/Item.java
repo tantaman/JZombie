@@ -38,7 +38,7 @@ public class Item extends Model<Item> {
 	}
 	
 	@Override
-	protected void resetFromServer() {
+	protected void endServerReset() {
 		System.out.println("CHANGED ON SERVER");
 		// TODO: base model class needs to tell us if anything actually changed within the model...
 		((Model.Listener)emitter.emit).change(this);

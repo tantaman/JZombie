@@ -9,8 +9,8 @@ public class ItemList extends Collection<ItemList, Item> {
 	}
 	
 	@Override
-	protected void resetFromServer() {
-		super.resetFromServer();
+	protected void endServerReset() {
+		super.endServerReset();
 		for (Item item : this) {
 			item.subscribe();
 		}

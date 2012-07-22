@@ -93,7 +93,14 @@ public class Collection<T, ModelType extends Model> extends ModelCollectionCommo
 	}
 	
 	@Override
-	protected void resetFromServer() {
+	protected void beginServerReset() {
+		for (ModelType model : models) {
+			model.dispose();
+		}
+	}
+	
+	@Override
+	protected void endServerReset() {
 		for (ModelType model : models) {
 			model.setCollection(this);
 		}

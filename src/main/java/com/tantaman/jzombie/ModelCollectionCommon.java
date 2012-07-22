@@ -14,6 +14,7 @@ import org.cometd.bayeux.client.ClientSessionChannel;
 import org.cometd.client.BayeuxClient;
 import org.cometd.client.transport.ClientTransport;
 import org.cometd.websocket.client.WebSocketTransport;
+import org.eclipse.jetty.util.security.Credential.MD5;
 import org.eclipse.jetty.websocket.WebSocketClientFactory;
 
 import com.google.gson.GsonBuilder;
@@ -54,7 +55,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	/**
 	 * Type erasure forces us to to ModelUpdateMessage instead of ModelUpdateMessage<T>
 	 */
-	private final ISerializer<String, ModelUpdateMessage> updateMessageSerializer;
+	//private final ISerializer<String, ModelUpdateMessage> updateMessageSerializer;
 	
 	// TODO: eventaully we should generalize to not be HTTP only.
 	// Could take an IClient.
@@ -72,7 +73,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		super(true, listenerClasses);
 		
 		serializer = createSerializer();
-		updateMessageSerializer = createUpdateMessageSerializer();
+		//updateMessageSerializer = createUpdateMessageSerializer();
 		
 		asyncHttpClient = new AsyncHttpClient();
 		this.safeThreads = safeThreads;
@@ -163,10 +164,9 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	    };
 		
 	    try {
-				System.out.println("Putting to url: " + url());
 				asyncHttpClient.preparePut(url())
 					.addHeader("Content-Type", "application/json")
-					.setBody(serialize())
+					.setBody(data)
 					.execute(handler);
 	    } catch (IOException e) {
 	    	if (err != null)
@@ -309,10 +309,10 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		});
 	}
 	
-	private T setUpdatedData(String json) {
-		T result = deserialize(json);
-		
-		resetFromServer();
+	private T setUpdatedData(String data) {
+		beginServerReset();
+		T result = deserialize(data);
+		endServerReset();
 		
 		return result;
 	}
@@ -339,7 +339,8 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 //	}
 	
 	protected void fieldSet(Field f) {}
-	protected void resetFromServer() {}
+	protected void beginServerReset() {}
+	protected void endServerReset() {}
 	
 	public String serialize() {
 		return serializer.serialize((T) this);
@@ -349,23 +350,60 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		return serializer.deserialize(data, (Class<T>)this.getClass());
 	}
 	
-	private class BayeuxMessageListener implements ClientSessionChannel.MessageListener {
-		@Override
-		public void onMessage(ClientSessionChannel channel, Message message) {
+	// TODO: ugh.. the serializer should take care of this.
+	// The ability to pass in custom serializers is now effectively useless.
+	private void updateMessageReceived(String json) {
+		synchronized (receiveLock) {
 			System.out.println("GOT A MESSAGE! WOO!!");
-			String json = message.getJSON();
-			
+
 			// TODO: we need to peek at the message first and pull its sequence number and discard it if it is old!
 			// TODO: we can also keep a digest of the last serialization of our model.
 			// if the digest of the returned serialization of the same as our last digest
 			// then discard the message as well.
-			ModelUpdateMessage msg = updateMessageSerializer.deserialize(json, ModelUpdateMessage.class);
-			System.out.println(msg.data);
-			System.out.println(ModelCollectionCommon.this);
-			System.out.println("Emitting");
-			resetFromServer();
-			//System.out.println(msg);
-			//System.out.println(json);
+			System.out.println(json);
+			//ModelUpdateMessage msg = updateMessageSerializer.deserialize(json, ModelUpdateMessage.class);
+
+			int dataStartCurly = 0;
+			int dataEndCurly = json.length();
+			
+			// TODO: we need to update the receive message to pass a verb, like it used to.
+			// TODO: we need to write a GSON wrapper to prepare certain items for GSON
+			int curlyCount = 0;
+			for (int i = 0; i < json.length(); ++i) {
+				if (json.charAt(i) == '{') {
+					++curlyCount;
+				}
+				if (curlyCount == 3) {
+					dataStartCurly = i;
+					break;
+				}
+			}
+			
+			curlyCount = 0;
+			for (int i = json.length() - 1; i > -1; --i) {
+				if (json.charAt(i) == '}') {
+					++curlyCount;
+				}
+				if (curlyCount == 3) {
+					dataEndCurly = i;
+					break;
+				}
+			}
+			
+			final String dataJson = json.substring(dataStartCurly, dataEndCurly + 1).trim();
+			safeThreads.execute(new Runnable() {
+				@Override
+				public void run() {
+					setUpdatedData(dataJson);
+				}
+			});
+		}
+	}
+	
+	private class BayeuxMessageListener implements ClientSessionChannel.MessageListener {
+		@Override
+		public void onMessage(ClientSessionChannel channel, Message message) {
+			updateMessageReceived(message.getJSON());
 		}
 	}
 }
