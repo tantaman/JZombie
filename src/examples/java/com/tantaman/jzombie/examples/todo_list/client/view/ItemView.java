@@ -2,6 +2,8 @@ package com.tantaman.jzombie.examples.todo_list.client.view;
 
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.font.TextAttribute;
 import java.util.Map;
@@ -44,11 +46,11 @@ public class ItemView extends JPanel {
 	}
 	
 	private void bind() {
-		completed.addItemListener(new java.awt.event.ItemListener() {			
+		completed.addActionListener(new ActionListener() {
 			@Override
-			public void itemStateChanged(ItemEvent e) {
-				System.out.println("ITEM EVENT");
-				if (e.getStateChange() == ItemEvent.SELECTED) {
+			public void actionPerformed(ActionEvent e) {
+				System.out.println("ACTION EVENT");
+				if (completed.isSelected()) {
 					model.completed(true);
 				} else {
 					model.completed(false);

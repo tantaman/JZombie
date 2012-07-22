@@ -20,6 +20,8 @@ import com.tantaman.jzombie.serializers.ISerializer;
 public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implements IModelComaprable {	
 	@Expose
 	protected final String id = UUID.randomUUID().toString();
+	// TODO: base 64 and uri encode the uuid
+	//Base64Utils.trim(new sun.misc.BASE64Encoder().encode(UUIDUtils.asByteArray(
 	
 	protected static AtomicLong nextCid = new AtomicLong(-1);
 	private volatile Collection<?, T> collection;

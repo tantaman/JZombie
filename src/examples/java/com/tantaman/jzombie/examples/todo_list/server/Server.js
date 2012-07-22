@@ -36,12 +36,13 @@ app.put('/ItemList/:id', function(req, res) {
 
 	if (existingModel == null) {
 		models.unshift(req.body);
+		bayClient.publish('/ItemList/' + req.params.id, {model: req.body});
 	} else {
 		_.extend(
 		existingModel, 
 		req.body);
 
-		bayClient.publish('/ItemList/' + req.params.id, {data: req.body});
+		bayClient.publish('/ItemList/' + req.params.id, {model: req.body});
 	}
 
 	res.send();

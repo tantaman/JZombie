@@ -200,14 +200,13 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	 * subscription will take place.
 	 */
 	public synchronized void subscribe() {
-		if (updateChannel != null) {
-			throw new IllegalStateException("Already subscribed.");
+		if (updateChannel == null) {
+	        // Can I start subscribing or does handshake need to actually complete first?
+	        // TODO: we need to clean up the Bayeux client correctly when the model is no longer used.
+	        updateChannel = bayeuxClient.getChannel(channel());
+	        System.out.println("Trying to subscribe: " + channel());
+	        updateChannel.subscribe(new BayeuxMessageListener());
 		}
-		
-        // Can I start subscribing or does handshake need to actually complete first?
-        // TODO: we need to clean up the Bayeux client correctly when the model is no longer used.
-        updateChannel = bayeuxClient.getChannel(channel());
-        updateChannel.subscribe(new BayeuxMessageListener());
 	}
 	
     // TODO: use GCNotifier to handle clean up
@@ -337,6 +336,10 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 			// client ids . . .?  can put the client id in query string for rest data...
 			// can put client id back into broadcast msg and ignore those from ourselves.
 			System.out.println("GOT A MESSAGE! WOO!!");
+			String json = message.getJSON();
+			
+			//serializer.deserialize(json, ModelUpdateMessage.class);
+			//Need to make some new type of serializer for model update messages....
 		}
 	}
 }

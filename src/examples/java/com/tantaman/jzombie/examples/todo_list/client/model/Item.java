@@ -2,6 +2,7 @@ package com.tantaman.jzombie.examples.todo_list.client.model;
 
 import com.google.gson.annotations.Expose;
 import com.tantaman.commons.concurrent.executors.SwingEDTAsExecutor;
+import com.tantaman.jzombie.Collection;
 import com.tantaman.jzombie.Model;
 
 public class Item extends Model<Item> {
@@ -15,12 +16,16 @@ public class Item extends Model<Item> {
 		
 		this.completed = completed;
 		this.name = name;
-		
-		subscribe();
 	}
 	
 	private Item() {
 		super(SwingEDTAsExecutor.instance, ItemListener.class);
+	}
+	
+	@Override
+	protected void setCollection(Collection<?, Item> collection) {
+		super.setCollection(collection);
+		subscribe();
 	}
 	
 	public boolean completed() {
