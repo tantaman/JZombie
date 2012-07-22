@@ -1,14 +1,14 @@
 package com.tantaman.jzombie.examples.todo_list.client;
 
-import java.lang.reflect.InvocationTargetException;
-
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
+import com.tantaman.jzombie.BayeuxConfiguration;
 import com.tantaman.jzombie.examples.todo_list.client.view.MainFrame;
 
 public class TodoMain {
-	public static void main(String[] args) throws InvocationTargetException, InterruptedException {
+	public static void main(String[] args) throws Exception {
+		BayeuxConfiguration.configureDefaultInstance("http://localhost/bayeux", null, null);
 		SwingUtilities.invokeAndWait(new Runnable() {
 			
 			@Override

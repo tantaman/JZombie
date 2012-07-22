@@ -6,16 +6,10 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.cometd.bayeux.Message;
 import org.cometd.bayeux.client.ClientSession;
 import org.cometd.bayeux.client.ClientSessionChannel;
-import org.cometd.client.BayeuxClient;
-import org.cometd.client.transport.ClientTransport;
-import org.cometd.websocket.client.WebSocketTransport;
-import org.eclipse.jetty.websocket.WebSocketClientFactory;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -26,7 +20,6 @@ import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import com.tantaman.commons.Fn;
-import com.tantaman.commons.concurrent.NamedThreadFactory;
 import com.tantaman.commons.listeners.AbstractMultiEventSource;
 import com.tantaman.jzombie.serializers.GSonSerializer;
 import com.tantaman.jzombie.serializers.ISerializer;
@@ -43,34 +36,14 @@ import com.tantaman.jzombie.serializers.ISerializer;
  *
  * @param <T>
  */
-// TODO: need to sync publishes with fetches!!!
+// TODO: need to sync publishes with fetches!!!  How shall we know which comes first : the fetch or publish?  Maybe fetches should return on the publish channel if we find ourselves subscribed....
 // I assume we can't do publishes on the same socket as fetches or can we???
 // Other: the server can fill in a seq number for us and we can discard anything less than the latest seq we have received
 // We could use the ETag field of the HTTP response headers!!
 @SuppressWarnings({ "unchecked", "rawtypes" })
 public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource {
-	private static final ScheduledExecutorService bayeuxService = Executors.newScheduledThreadPool(4, new NamedThreadFactory("JZombie-Client-BayeuxService"));
-	private static final WebSocketClientFactory webSocketClientFactory = new WebSocketClientFactory();
-	private static final ClientSession bayeuxClient;
-	static {
-		try {
-			webSocketClientFactory.start();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		ClientTransport transport = WebSocketTransport.create(null, webSocketClientFactory, bayeuxService);
-		// TODO: THIS NEEDS TO BE CONFIGURABLE!  And even configurable by object if the user so desires!
-		// Is the bayeux client light weight enough to make one per object? . . . .
-    	bayeuxClient = new BayeuxClient("http://localhost/bayeux", transport);
-    	bayeuxClient.handshake();
-	}
-	
+	private final ClientSession bayeuxClient;
 	protected final ISerializer<String, T> serializer;
-	
-	/**
-	 * Type erasure forces us to to ModelUpdateMessage instead of ModelUpdateMessage<T>
-	 */
-	//private final ISerializer<String, ModelUpdateMessage> updateMessageSerializer;
 	
 	// TODO: eventaully we should generalize to not be HTTP only.
 	// Could take an IClient.
@@ -87,6 +60,8 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 	public ModelCollectionCommon(ExecutorService safeThreads, Class[] listenerClasses) {
 		super(true, listenerClasses);
 		
+		// TODO: allow this to be configurable
+		bayeuxClient = BayeuxConfiguration.getDefaultInstance().bayeuxClient();
 		serializer = createSerializer();
 		//updateMessageSerializer = createUpdateMessageSerializer();
 		
@@ -111,19 +86,6 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		}).excludeFieldsWithoutExposeAnnotation();
 		
 		return builder;
-	}
-	
-	protected ISerializer<String, ModelUpdateMessage> createUpdateMessageSerializer() {
-		GsonBuilder builder = createBuilder();
-		
-		builder.registerTypeAdapter(ModelCollectionCommon.class, new InstanceCreator<ModelCollectionCommon>() {
-			@Override
-			public ModelCollectionCommon createInstance(Type type) {
-				return ModelCollectionCommon.this;
-			}
-		});
-		
-		return new GSonSerializer(builder.create());
 	}
 	
 	protected abstract String id();
