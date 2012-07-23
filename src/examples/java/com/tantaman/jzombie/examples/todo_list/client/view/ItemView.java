@@ -4,8 +4,8 @@ import java.awt.Component;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
 import java.awt.font.TextAttribute;
+import java.util.Date;
 import java.util.Map;
 
 import javax.swing.JCheckBox;
@@ -25,7 +25,7 @@ public class ItemView extends JPanel {
 	private final ModelListener listener = new ModelListener();
 	
 	private JLabel name;
-	private JCheckBox completed;	
+	private JCheckBox completed;
 	private Map fontAttrs;
 	
 	public ItemView(Item model) {
@@ -48,9 +48,9 @@ public class ItemView extends JPanel {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				if (completed.isSelected()) {
-					model.completed(true);
+					model.setCompleted(true);
 				} else {
-					model.completed(false);
+					model.setCompleted(false);
 				}
 				model.save();
 			}
@@ -60,11 +60,11 @@ public class ItemView extends JPanel {
 	}
 	
 	public Component render() {
-		name.setText(model.name());
-		completed.setSelected(model.completed());
+		name.setText(model.getName());
+		completed.setSelected(model.getCompleted());
 		
 		
-		if (model.completed()) {
+		if (model.getCompleted()) {
 			fontAttrs.put(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON);
 		} else {
 			fontAttrs.remove(TextAttribute.STRIKETHROUGH);

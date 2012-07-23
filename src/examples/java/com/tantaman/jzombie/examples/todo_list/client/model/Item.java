@@ -12,6 +12,7 @@ public class Item extends Model<Item> {
 	@Expose
 	private String name;
 	
+	
 	public Item(boolean completed, String name) {
 		super(SwingEDTAsExecutor.instance);
 		
@@ -23,21 +24,21 @@ public class Item extends Model<Item> {
 		super(SwingEDTAsExecutor.instance);
 	}
 	
-	public String name() {
+	public String getName() {
 		return name;
 	}
 	
 	// TODO: we really should do some byte code manipulation to generate the emit, check if new val != old val and if we are in a change event.
-	public void name(String newName) {
+	public void setName(String newName) {
 		name = newName;
 		((Model.Listener)emitter.emit).change(this);
 	}
 	
-	public boolean completed() {
+	public boolean getCompleted() {
 		return completed;
 	}
 	
-	public void completed(boolean newCompleted) {
+	public void setCompleted(boolean newCompleted) {
 		completed = newCompleted;
 		((Model.Listener)emitter.emit).change(this);
 	}

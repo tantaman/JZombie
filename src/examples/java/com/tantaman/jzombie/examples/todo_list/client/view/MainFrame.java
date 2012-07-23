@@ -12,8 +12,8 @@ import com.tantaman.jzombie.examples.todo_list.client.model.ItemList;
 public class MainFrame extends JFrame {
 	public MainFrame() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setPreferredSize(new Dimension(800,600));
-		setSize(new Dimension(800, 600));
+		setPreferredSize(new Dimension(400,600));
+		setSize(new Dimension(400, 600));
 		
 		ItemList todoListModel = new ItemList();
 		ItemListView todoListView = new ItemListView(todoListModel);
