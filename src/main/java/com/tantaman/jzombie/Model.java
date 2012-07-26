@@ -18,7 +18,7 @@ import com.google.gson.annotations.Expose;
  */
 public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implements IModelComaprable {	
 	@Expose
-	protected final String id = UUID.randomUUID().toString();
+	protected final String id;
 	// TODO: base 64 and uri encode the uuid
 	//UUIDUtils.asURLSafeBase64String
 	
@@ -32,11 +32,16 @@ public class Model<T extends Model<T>> extends ModelCollectionCommon<T> implemen
 	 */
 	// Does submitting to the EDT create a happens-before like submitting to a normal executor...?
 	public Model(ExecutorService safeThreads) {
-		this(safeThreads, null);
+		this(safeThreads, UUID.randomUUID().toString());
+	}
+	
+	public Model(ExecutorService safeThreads, String id, Class<?> ... listenerInterfaces) {
+		super(safeThreads, addListenerInterface(listenerInterfaces, Listener.class));
+		this.id = id;
 	}
 	
 	public Model(ExecutorService safeThreads, Class<?> ... listenerInterfaces) {
-		super(safeThreads, addListenerInterface(listenerInterfaces, Listener.class));
+		this(safeThreads, UUID.randomUUID().toString(), listenerInterfaces);
 	}
 	
 	protected void setCollection(Collection<?, T> collection) {

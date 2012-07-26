@@ -1,3 +1,6 @@
+Fix collection serialization to not be { models: [] }...
+
+
 -model needs to reference collection it is in
 -model needs to update its id when receiving a new id from the server
 -model needs to update collection when its id changes

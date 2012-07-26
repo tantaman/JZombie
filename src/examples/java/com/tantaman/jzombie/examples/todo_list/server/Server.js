@@ -23,7 +23,7 @@ app.put('/ItemList/:id', function(req, res) {
 	console.log(req.body);
 	var etag = req.query.etag;
 
-	var models = state.ItemList.models;
+	var models = state.ItemList;
 
 	var existingModel = null;
 	models.every(function(model) {

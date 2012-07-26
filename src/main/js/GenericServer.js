@@ -11,10 +11,10 @@ var bayeux = new faye.NodeAdapter({mount: '/bayeux', timeout: 45});
 bayeux.attach(app);
 
 app.use(function(req, res) {
-	console.log(req.url);
-	console.log(req.method);
-	console.log(req.body);
-	console.log(req.query);
+	// console.log(req.url);
+	// console.log(req.method);
+	// console.log(req.body);
+	// console.log(req.query);
 
 	switch (req.method) {
 		case 'GET':
@@ -41,17 +41,26 @@ var nextId = 0;
 
 function get(req, res) {
 	var parts = req.url.split("/");
+	if (parts[parts.length - 1] == '')
+		parts.pop();
 	parts.shift();
+
+	if (parts.length == 0)
+		parts = ["index"];
+
 	var data = mapResolver.resolveItem(state, parts);
 
 	if (data != null)
 		res.send(data);
 	else {
-		parts.pop();
+		var id = parts.pop();
 		data = mapResolver.resolveItem(state, parts);
-		if (data != null)
-			res.send(data);
-		else
+		if (data != null) {
+			var model = _.find(data, function(model) {
+				return model.id == id;
+			});
+			res.send(model);
+		} else
 			res.send();
 	}
 }
@@ -84,12 +93,31 @@ function put(req, res) {
 
 	if (req.body.id != null) {
 		parts.pop();
-		parts.push('models');
+		if (parts.length == 0) {
+			parts = ["index"];
+			var shift = true;
+		}
+
 		var data = mapResolver.resolveItem(state, parts);
 		if (data == null || !Array.isArray(data)) {
 			data = [];
 			mapResolver.placeItem(state, parts, data);
 			data.push(req.body);
+
+			if (shift)
+				parts.shift();
+
+			var msg = {
+				verb: "update", 
+				model: existingItem
+			};
+
+			if (etag != null)
+				msg.etag = etag;
+
+			parts.push(req.body.id);
+			var topic = parts.join('/');
+			bayClient.publish('/' + topic, msg);
 		} else {
 			var existingItem = _.find(data, function(item) {
 				return item.id == req.body.id;
@@ -106,15 +134,17 @@ function put(req, res) {
 				if (etag != null)
 					msg.etag = etag;
 
-				parts.pop();
 				parts.push(req.body.id);
+				if (shift)
+					parts.shift();
+
 				var topic = parts.join('/');
 
 				bayClient.publish('/' + topic, msg);
+				console.log(topic);
 			} else {
 				data.push(req.body);
 
-				parts.pop();
 				bayClient.publish('/' + parts.join(),
 				{
 					verb: "reset",

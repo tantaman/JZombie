@@ -18,6 +18,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.InstanceCreator;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.AsyncHttpClient.BoundRequestBuilder;
 import com.ning.http.client.Response;
 import com.tantaman.commons.Fn;
 import com.tantaman.commons.listeners.AbstractMultiEventSource;
@@ -61,7 +62,12 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		super(true, listenerClasses);
 		
 		// TODO: allow this to be configurable
-		bayeuxClient = BayeuxConfiguration.getDefaultInstance().bayeuxClient();
+		BayeuxConfiguration config = BayeuxConfiguration.getDefaultInstance();
+		if (config != null)
+			bayeuxClient = BayeuxConfiguration.getDefaultInstance().bayeuxClient();
+		else
+			bayeuxClient = null;
+		
 		serializer = createSerializer();
 		//updateMessageSerializer = createUpdateMessageSerializer();
 		
@@ -156,7 +162,14 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		
 	    try {
 	    	etag = etag();
-			asyncHttpClient.preparePut(url())
+	    	
+	    	BoundRequestBuilder builder;
+	    	if (id() != "")
+	    		builder = asyncHttpClient.preparePut(url());
+	    	else
+	    		builder = asyncHttpClient.preparePost(url());
+			
+			builder
 				.addHeader("Content-Type", "application/json")
 				.addQueryParameter("etag", etag)
 				.setBody(data)
@@ -306,7 +319,7 @@ public abstract class ModelCollectionCommon<T> extends AbstractMultiEventSource 
 		});
 	}
 	
-	private T setUpdatedData(String data) {
+	protected T setUpdatedData(String data) {
 		beginServerReset();
 		T result = deserialize(data);
 		endServerReset();

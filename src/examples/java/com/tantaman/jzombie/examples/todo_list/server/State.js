@@ -1,6 +1,6 @@
 module.exports = {
-	ItemList: {
-		models: [
+	ItemList:
+		[
 			{
 				id: '2',
 				name: "Clean Kitchen",
@@ -17,5 +17,4 @@ module.exports = {
 				compeleted: false
 			}
 		]
-	}
 };

@@ -17,14 +17,14 @@ public class ModelTest {
 		TestClass t = new TestClass("omg", "wee");
 		
 		//t.save(null, null);
-		t.fetch(null, null, null);
+		//t.fetch(null, null, null);
 		
-		try {
-			Thread.sleep(5000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//		try {
+//			Thread.sleep(5000);
+//		} catch (InterruptedException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 	}
 	
 	public static class TestClass extends Model<TestClass> {
