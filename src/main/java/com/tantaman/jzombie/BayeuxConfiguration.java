@@ -35,7 +35,7 @@ public class BayeuxConfiguration {
 		if (wsClientFactory == null)
 			wsClientFactory = new WebSocketClientFactory();
 		
-		defaultInstance = new BayeuxConfiguration("http://localhost/bayeux", threadPool, wsClientFactory);
+		defaultInstance = new BayeuxConfiguration(serverLocation, threadPool, wsClientFactory);
 		
 		return defaultInstance;
 	}

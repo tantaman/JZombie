@@ -70,6 +70,6 @@ bayeux.attach(app);
 
 var bayClient = bayeux.getClient();
 
-app.listen(80);
+app.listen(8080);
 
-console.log("Up and listening at port 80");
+console.log("Up and listening at port 8080");

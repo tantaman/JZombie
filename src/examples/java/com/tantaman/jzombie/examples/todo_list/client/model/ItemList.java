@@ -8,4 +8,9 @@ public class ItemList extends Collection<ItemList, Item> {
 		super(SwingEDTAsExecutor.instance, Item.class);
 		subscribe();
 	}
+	
+	@Override
+	protected String host() {
+		return "http://localhost:8080";
+	}
 }

@@ -20,6 +20,11 @@ public class Item extends Model<Item> {
 		this.name = name;
 	}
 	
+	@Override
+	protected String host() {
+		return "http://localhost:8080";
+	}
+	
 	private Item() {
 		super(SwingEDTAsExecutor.instance);
 	}

@@ -15,55 +15,64 @@ public class VidExample {
 		
 		BayeuxConfiguration.configureDefaultInstance("http://localhost/bayeux", null, null);
 		
-		SyncedObject o = new SyncedObject("Hello", "");
-		o.subscribe();
+		SomeClass object = new SomeClass("1");
 		
 		String newName;
 		while (!(newName = scanner.nextLine()).equals("q")) {
-			if (newName.equals("create")) {
-				System.out.print("Id: ");
-				String id = scanner.nextLine();
-				System.out.print("\nName: ");
-				String name = scanner.nextLine();
-				new SyncedObject(name, id).save();
-			} else {
-				o.setName(newName);
-				o.save();
-			}
+			object.setName(newName);
+			String lastName = scanner.nextLine();
+			object.setLastName(lastName);
+			
+			object.contained.setVar(newName + lastName);
+			
+			object.save();
+			System.out.println(object);
 		}
 	}
 	
-	public static class SyncedObject extends Model<SyncedObject> {
+	public static class SomeClass extends Model<SomeClass> {
 		@Expose
-		private volatile String name;
+		private String name;
+		@Expose
+		private String lastName;
+		@Expose
+		public Contained contained = new Contained();
 		
-		public SyncedObject(String n, String id) {
+		public SomeClass() {
+			super(exec);
+		}
+		
+		public SomeClass(String id) {
 			super(exec, id);
-			name = n;
+			subscribe();
 		}
 		
-		public void setName(String newName) {
-			name = newName;
+		public void setName(String name) {
+			this.name = name;
 		}
 		
-		@Override
-		protected String rootUrl() {
-			return "/SyncedObject";
+		public void setLastName(String lastName) {
+			this.lastName = lastName;
 		}
 		
 		@Override
 		protected void endServerReset() {
-			super.endServerReset();
-			System.out.println("Updated to: " + this);
-		}
-		
-		public SyncedObject() {
-			super(exec);
+			System.out.println("JZOMBIE SYNCHRONIZED!");
+			System.out.println(this);
 		}
 		
 		@Override
 		public String toString() {
-			return name;
+			return name + " " + lastName + contained.var;
+		}
+	}
+	
+	public static class Contained {
+		@Expose
+		private String var = "variable";
+		
+		public void setVar(String var) {
+			this.var = var;
 		}
 	}
 }

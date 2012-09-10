@@ -8,7 +8,7 @@ import com.tantaman.jzombie.examples.todo_list.client.view.MainFrame;
 
 public class TodoMain {
 	public static void main(String[] args) throws Exception {
-		BayeuxConfiguration.configureDefaultInstance("http://localhost/bayeux", null, null);
+		BayeuxConfiguration.configureDefaultInstance("http://localhost:8080/bayeux", null, null);
 		SwingUtilities.invokeAndWait(new Runnable() {
 			
 			@Override
